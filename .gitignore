@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+env/
+
+# Local runtime data
+config.json
+monitor_data.db
+*.db
+*.sqlite
+*.sqlite3
+server*.log
+*.log
+
+# Local notes / task artifacts
+findings.md
+progress.md
+task_plan.md
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Build / cache
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
