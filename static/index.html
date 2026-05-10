@@ -8,6 +8,15 @@
     
     
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script async src="https://cdn.jsdelivr.net/npm/es-module-shims@1.10.0/dist/es-module-shims.min.js"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"
+            }
+        }
+    </script>
     
     <style>
         * {
@@ -914,6 +923,107 @@
             color: #2563eb;
         }
 
+        /* ===== 设备情况页面 ===== */
+        .device-status-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 340px;
+            gap: 20px;
+            height: calc(100vh - 160px);
+            min-height: 560px;
+            min-width: 0;
+        }
+
+        .device-model-panel {
+            position: relative;
+            min-width: 0;
+            min-height: 0;
+            overflow: hidden;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+        }
+
+        #deviceModelCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            background: radial-gradient(circle at 50% 48%, #f8fafc 0%, #eef2f7 52%, #e5e7eb 100%);
+        }
+
+        .device-model-empty,
+        .device-model-loading {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: #6b7280;
+            font-size: 14px;
+            padding: 24px;
+            pointer-events: none;
+        }
+
+        .device-model-loading {
+            background: rgba(255, 255, 255, 0.78);
+            color: #1d4ed8;
+            font-weight: 600;
+        }
+
+        .device-info-panel {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 22px;
+            overflow-y: auto;
+            min-width: 0;
+        }
+
+        .device-info-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 18px;
+        }
+
+        .device-info-row {
+            padding: 14px 0;
+            border-top: 1px solid #eef2f7;
+        }
+
+        .device-info-label {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 6px;
+        }
+
+        .device-info-value {
+            font-size: 15px;
+            font-weight: 600;
+            color: #111827;
+            overflow-wrap: anywhere;
+        }
+
+        .device-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: #ecfdf5;
+            color: #047857;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .device-status-badge::before {
+            content: "";
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
         /* ===== 图表页面 ===== */
         .chart-full {
             height: 420px;
@@ -1546,6 +1656,7 @@
         .nav-item[data-page="charts"] .nav-icon::before { content: "A"; }
         .nav-item[data-page="camera"] .nav-icon::before { content: "C"; }
         .nav-item[data-page="map"] .nav-icon::before { content: "M"; }
+        .nav-item[data-page="device-status"] .nav-icon::before { content: "3D"; font-size: 11px; }
         .nav-item[data-page="alerts"] .nav-icon::before { content: "!"; }
         .nav-item[data-page="settings"] .nav-icon::before { content: "S"; }
 
@@ -1756,6 +1867,17 @@
                 height: calc(100vh - 150px);
                 min-height: 480px;
             }
+
+            .device-status-layout {
+                grid-template-columns: 1fr;
+                height: auto;
+                min-height: 0;
+            }
+
+            .device-model-panel {
+                height: 60vh;
+                min-height: 420px;
+            }
             
             .ai-sidebar {
                 display: none;
@@ -1832,6 +1954,10 @@
                 <div class="nav-item" data-page="map">
                     <span class="nav-icon" aria-hidden="true"></span>
                     <span>设备地图</span>
+                </div>
+                <div class="nav-item" data-page="device-status">
+                    <span class="nav-icon" aria-hidden="true"></span>
+                    <span>设备情况</span>
                 </div>
                 <div class="nav-item" data-page="alerts">
                     <span class="nav-icon" aria-hidden="true"></span>
@@ -2154,6 +2280,40 @@
                     </div>
                 </div>
 
+                <!-- 设备情况 -->
+                <div class="page" id="page-device-status">
+                    <div class="device-status-layout">
+                        <div class="device-model-panel">
+                            <canvas id="deviceModelCanvas"></canvas>
+                            <div class="device-model-empty" id="deviceModelEmpty">请在系统设置中上传 .glb/.gltf 设备模型</div>
+                            <div class="device-model-loading" id="deviceModelLoading" style="display:none;">模型加载中...</div>
+                        </div>
+                        <aside class="device-info-panel">
+                            <div class="device-info-title" id="deviceNameDisplay">工业设备 #01</div>
+                            <div class="device-info-row">
+                                <div class="device-info-label">经度</div>
+                                <div class="device-info-value" id="deviceLongitudeDisplay">116.397428</div>
+                            </div>
+                            <div class="device-info-row">
+                                <div class="device-info-label">纬度</div>
+                                <div class="device-info-value" id="deviceLatitudeDisplay">39.90923</div>
+                            </div>
+                            <div class="device-info-row">
+                                <div class="device-info-label">注册日期</div>
+                                <div class="device-info-value" id="deviceRegisteredDisplay">未配置</div>
+                            </div>
+                            <div class="device-info-row">
+                                <div class="device-info-label">使用状态</div>
+                                <div class="device-info-value"><span class="device-status-badge" id="deviceStatusDisplay">运行中</span></div>
+                            </div>
+                            <div class="device-info-row">
+                                <div class="device-info-label">3D 模型</div>
+                                <div class="device-info-value" id="deviceModelFileDisplay">未上传</div>
+                            </div>
+                        </aside>
+                    </div>
+                </div>
+
                 <!-- 系统设置 -->
                 <div class="page" id="page-settings">
                     <div class="settings-grid">
@@ -2194,6 +2354,41 @@
                             </div>
                             <button type="button" class="save-btn" onclick="uploadSkill()">上传 Skill</button>
                             <div id="skillList" style="margin-top:12px;font-size:13px;color:#6b7280;line-height:1.7;"></div>
+                        </div>
+                        <div class="setting-group">
+                            <h3 class="setting-group-title">设备情况配置</h3>
+                            <div class="setting-field">
+                                <label class="setting-label">设备名称</label>
+                                <input type="text" class="setting-input" id="deviceNameInput" placeholder="工业设备 #01">
+                            </div>
+                            <div class="setting-field">
+                                <label class="setting-label">经度</label>
+                                <input type="text" class="setting-input" id="deviceLongitudeInput" placeholder="116.397428">
+                            </div>
+                            <div class="setting-field">
+                                <label class="setting-label">纬度</label>
+                                <input type="text" class="setting-input" id="deviceLatitudeInput" placeholder="39.90923">
+                            </div>
+                            <div class="setting-field">
+                                <label class="setting-label">注册日期</label>
+                                <input type="date" class="setting-input" id="deviceRegisteredInput">
+                            </div>
+                            <div class="setting-field">
+                                <label class="setting-label">使用状态</label>
+                                <select class="setting-select" id="deviceStatusInput">
+                                    <option value="运行中">运行中</option>
+                                    <option value="维护中">维护中</option>
+                                    <option value="停用">停用</option>
+                                    <option value="离线">离线</option>
+                                </select>
+                            </div>
+                            <div class="setting-field">
+                                <label class="setting-label">上传 3D 模型（.glb/.gltf）</label>
+                                <input type="file" class="setting-input" id="deviceModelInput" accept=".glb,.gltf,.bin">
+                            </div>
+                            <button type="button" class="save-btn" onclick="uploadDeviceModel()">上传模型</button>
+                            <button type="button" class="save-btn" style="margin-top:8px;background:#10b981;" onclick="saveDeviceSettings()">保存设备信息</button>
+                            <div class="model-status" id="deviceModelStatus"></div>
                         </div>
                         <div class="setting-group">
                             <h3 class="setting-group-title">AI 对话配置</h3>
@@ -2311,6 +2506,16 @@
         </div>
     </div>
 
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        window.Device3D = { THREE, GLTFLoader, OrbitControls };
+        window.device3DReady = true;
+        window.dispatchEvent(new Event('device3d-ready'));
+    </script>
+
     <script>
         let currentPage = 'dashboard';
         let realtimeChart = null;
@@ -2320,6 +2525,16 @@
         let map = null;
         let ws = null;
         let wsConnected = false;
+        let deviceInfo = {
+            name: '工业设备 #01',
+            latitude: '39.90923',
+            longitude: '116.397428',
+            registered_at: '',
+            status: '运行中',
+            model_url: '',
+            model_filename: ''
+        };
+        let deviceViewer = null;
         let realtimeDataBuffer = { temp: [], humid: [], vibration: [], time: [] };
         const MAX_DATA_POINTS = 60;
 
@@ -2473,6 +2688,7 @@
                 'charts': ['数据分析', '历史数据可视化与趋势分析（需后端提供）'],
                 'camera': ['摄像头监控', '实时视频画面监控'],
                 'map': ['设备地图', '高德地图展示设备位置'],
+                'device-status': ['设备情况', '查看设备 3D 模型与基础信息'],
                 'alerts': ['报警中心', '查看和处理报警信息'],
                 'settings': ['系统设置', '配置连接参数和阈值']
             };
@@ -2491,6 +2707,8 @@
                 if (!anomalyChart) initAnomalyChart();
             } else if (pageName === 'map' && !map) {
                 initAMap();
+            } else if (pageName === 'device-status') {
+                setTimeout(initDeviceViewer, 80);
             }
         }
 
@@ -3390,6 +3608,260 @@
             }
         }
 
+        function getDevicePayload() {
+            return {
+                name: document.getElementById('deviceNameInput')?.value || deviceInfo.name || '工业设备 #01',
+                longitude: document.getElementById('deviceLongitudeInput')?.value || deviceInfo.longitude || '',
+                latitude: document.getElementById('deviceLatitudeInput')?.value || deviceInfo.latitude || '',
+                registered_at: document.getElementById('deviceRegisteredInput')?.value || deviceInfo.registered_at || '',
+                status: document.getElementById('deviceStatusInput')?.value || deviceInfo.status || '运行中',
+                model_url: deviceInfo.model_url || '',
+                model_filename: deviceInfo.model_filename || ''
+            };
+        }
+
+        function applyDeviceInfo(info = {}) {
+            deviceInfo = { ...deviceInfo, ...info };
+            const name = deviceInfo.name || '工业设备 #01';
+            const longitude = deviceInfo.longitude || '未配置';
+            const latitude = deviceInfo.latitude || '未配置';
+            const registered = deviceInfo.registered_at || '未配置';
+            const status = deviceInfo.status || '运行中';
+            const modelFile = deviceInfo.model_filename || '未上传';
+
+            const setText = (id, value) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = value;
+            };
+            setText('deviceNameDisplay', name);
+            setText('deviceLongitudeDisplay', longitude);
+            setText('deviceLatitudeDisplay', latitude);
+            setText('deviceRegisteredDisplay', registered);
+            setText('deviceStatusDisplay', status);
+            setText('deviceModelFileDisplay', modelFile);
+
+            const setValue = (id, value) => {
+                const el = document.getElementById(id);
+                if (el && value !== undefined && value !== null) el.value = value;
+            };
+            setValue('deviceNameInput', name);
+            setValue('deviceLongitudeInput', deviceInfo.longitude || '');
+            setValue('deviceLatitudeInput', deviceInfo.latitude || '');
+            setValue('deviceRegisteredInput', deviceInfo.registered_at || '');
+            setValue('deviceStatusInput', status);
+
+            if (deviceInfo.model_url) {
+                loadDeviceModel(deviceInfo.model_url);
+            } else {
+                showDeviceModelEmpty(true);
+            }
+        }
+
+        function setDeviceStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('deviceModelStatus');
+            if (!statusDiv) return;
+            statusDiv.textContent = message;
+            statusDiv.className = `model-status show ${type}`;
+        }
+
+        async function saveDeviceSettings(showAlert = true) {
+            deviceInfo = { ...deviceInfo, ...getDevicePayload() };
+            const apiUrl = document.getElementById('apiUrl').value || 'http://localhost:8000';
+            await fetch(`${apiUrl}/api/settings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ device_info: deviceInfo })
+            });
+            applyDeviceInfo(deviceInfo);
+            if (showAlert) setDeviceStatus('设备信息已保存', 'success');
+        }
+
+        async function uploadDeviceModel() {
+            const input = document.getElementById('deviceModelInput');
+            if (!input?.files?.length) {
+                alert('请选择 .glb/.gltf 设备模型文件');
+                return;
+            }
+            await saveDeviceSettings(false);
+            const form = new FormData();
+            form.append('file', input.files[0]);
+            const apiUrl = document.getElementById('apiUrl').value || 'http://localhost:8000';
+            setDeviceStatus('模型上传中...', 'info');
+            try {
+                const res = await fetch(`${apiUrl}/api/device/model`, { method: 'POST', body: form });
+                const data = await res.json();
+                if (!res.ok || !data.success) throw new Error(data.detail || data.message || '上传失败');
+                input.value = '';
+                deviceInfo.model_url = data.model_url;
+                deviceInfo.model_filename = data.filename;
+                await saveDeviceSettings(false);
+                applyDeviceInfo(deviceInfo);
+                setDeviceStatus(`模型已上传：${data.filename}`, 'success');
+            } catch (e) {
+                setDeviceStatus(e.message || '模型上传失败', 'error');
+            }
+        }
+
+        function showDeviceModelEmpty(show) {
+            const empty = document.getElementById('deviceModelEmpty');
+            if (empty) empty.style.display = show ? 'flex' : 'none';
+        }
+
+        function showDeviceModelLoading(show) {
+            const loading = document.getElementById('deviceModelLoading');
+            if (loading) loading.style.display = show ? 'flex' : 'none';
+        }
+
+        function initDeviceViewer() {
+            const canvas = document.getElementById('deviceModelCanvas');
+            const panel = canvas?.parentElement;
+            if (!canvas || !panel) return;
+            if (!window.device3DReady || !window.Device3D) {
+                window.addEventListener('device3d-ready', initDeviceViewer, { once: true });
+                return;
+            }
+            const { THREE, OrbitControls } = window.Device3D;
+            if (!deviceViewer) {
+                const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+                renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6));
+                renderer.outputColorSpace = THREE.SRGBColorSpace;
+                renderer.shadowMap.enabled = false;
+
+                const scene = new THREE.Scene();
+                scene.background = null;
+                const camera = new THREE.PerspectiveCamera(38, 1, 0.01, 1000);
+                camera.position.set(2.4, 1.6, 2.8);
+                const controls = new OrbitControls(camera, renderer.domElement);
+                controls.enableDamping = false;
+                controls.enablePan = false;
+                controls.minDistance = 0.8;
+                controls.maxDistance = 18;
+
+                scene.add(new THREE.HemisphereLight(0xffffff, 0xd7dee8, 2.2));
+                const keyLight = new THREE.DirectionalLight(0xffffff, 2.4);
+                keyLight.position.set(4, 5, 3);
+                scene.add(keyLight);
+                const fillLight = new THREE.DirectionalLight(0xc7d2fe, 1.1);
+                fillLight.position.set(-3, 2, -2);
+                scene.add(fillLight);
+
+                const ground = new THREE.Mesh(
+                    new THREE.CircleGeometry(3.2, 96),
+                    new THREE.MeshBasicMaterial({ color: 0xe5eaf1, transparent: true, opacity: 0.72 })
+                );
+                ground.rotation.x = -Math.PI / 2;
+                ground.position.y = -0.02;
+                scene.add(ground);
+
+                let framePending = false;
+                const render = () => {
+                    framePending = false;
+                    controls.update();
+                    renderer.render(scene, camera);
+                };
+                const requestRender = () => {
+                    if (!framePending) {
+                        framePending = true;
+                        requestAnimationFrame(render);
+                    }
+                };
+                controls.addEventListener('change', requestRender);
+
+                const resize = () => {
+                    const rect = panel.getBoundingClientRect();
+                    const width = Math.max(1, Math.floor(rect.width));
+                    const height = Math.max(1, Math.floor(rect.height));
+                    camera.aspect = width / height;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(width, height, false);
+                    requestRender();
+                };
+                const observer = new ResizeObserver(resize);
+                observer.observe(panel);
+
+                deviceViewer = { THREE, renderer, scene, camera, controls, requestRender, resize, model: null, ground };
+                resize();
+            } else {
+                deviceViewer.resize();
+            }
+            if (deviceInfo.model_url && !deviceViewer.loadedUrl) {
+                loadDeviceModel(deviceInfo.model_url);
+            }
+        }
+
+        function loadDeviceModel(url) {
+            if (!url) {
+                showDeviceModelEmpty(true);
+                return;
+            }
+            if (!window.device3DReady || !window.Device3D) {
+                window.addEventListener('device3d-ready', () => loadDeviceModel(url), { once: true });
+                return;
+            }
+            initDeviceViewer();
+            if (!deviceViewer || deviceViewer.loadedUrl === url) {
+                showDeviceModelEmpty(false);
+                return;
+            }
+            const { THREE, GLTFLoader } = window.Device3D;
+            showDeviceModelLoading(true);
+            showDeviceModelEmpty(false);
+            const loader = new GLTFLoader();
+            loader.load(url, (gltf) => {
+                if (deviceViewer.model) {
+                    deviceViewer.model.traverse((obj) => {
+                        if (obj.isMesh) {
+                            obj.geometry?.dispose?.();
+                            const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+                            materials.forEach((mat) => {
+                                if (!mat) return;
+                                Object.values(mat).forEach((value) => {
+                                    if (value?.isTexture) value.dispose();
+                                });
+                                mat.dispose?.();
+                            });
+                        }
+                    });
+                    deviceViewer.scene.remove(deviceViewer.model);
+                }
+                const model = gltf.scene;
+                model.traverse((obj) => {
+                    if (obj.isMesh) {
+                        obj.frustumCulled = true;
+                        obj.castShadow = false;
+                        obj.receiveShadow = false;
+                        if (obj.material) {
+                            obj.material.needsUpdate = true;
+                        }
+                    }
+                });
+
+                const box = new THREE.Box3().setFromObject(model);
+                const size = box.getSize(new THREE.Vector3());
+                const center = box.getCenter(new THREE.Vector3());
+                const maxDim = Math.max(size.x, size.y, size.z) || 1;
+                const scale = 3.9 / maxDim;
+                model.scale.setScalar(scale);
+                model.position.sub(center.multiplyScalar(scale));
+                model.position.y += Math.max(size.y * scale, 0.1) * 0.45;
+                deviceViewer.scene.add(model);
+                deviceViewer.model = model;
+                deviceViewer.loadedUrl = url;
+
+                const radius = Math.max(2.4, maxDim * scale * 0.9);
+                deviceViewer.camera.position.set(radius * 0.95, radius * 0.55, radius * 1.15);
+                deviceViewer.controls.target.set(0, Math.max(size.y * scale * 0.25, 0.3), 0);
+                deviceViewer.controls.update();
+                showDeviceModelLoading(false);
+                deviceViewer.requestRender();
+            }, undefined, (error) => {
+                console.error('设备模型加载失败:', error);
+                showDeviceModelLoading(false);
+                showDeviceModelEmpty(true);
+                setDeviceStatus('模型加载失败，请确认 glTF 文件及资源完整', 'error');
+            });
+        }
+
         async function testDatabaseConnection() {
             const apiUrl = document.getElementById('apiUrl').value || 'http://localhost:8000';
             try {
@@ -3429,7 +3901,8 @@
                     database_backend: document.getElementById('databaseBackend').value,
                     postgres_dsn: document.getElementById('postgresDsn').value,
                     supabase_url: document.getElementById('supabaseUrl').value,
-                    supabase_key: document.getElementById('supabaseKey').value
+                    supabase_key: document.getElementById('supabaseKey').value,
+                    device_info: getDevicePayload()
                 })
             }).catch(e => console.warn('同步设置到后端失败:', e));
             
@@ -3466,6 +3939,7 @@
                 if (settings.postgres_dsn) document.getElementById('postgresDsn').value = settings.postgres_dsn;
                 if (settings.supabase_url) document.getElementById('supabaseUrl').value = settings.supabase_url;
                 if (settings.supabase_key) document.getElementById('supabaseKey').value = settings.supabase_key;
+                if (settings.device_info) applyDeviceInfo(settings.device_info);
                 document.getElementById('feishuForwardReplies').checked = settings.feishu_forward_ai_replies !== false;
                 document.getElementById('feishuReceiveMessages').checked = settings.feishu_receive_group_messages !== false;
                 const localPostgresDsn = localStorage.getItem('monitor_postgresDsn') || '';
@@ -3542,6 +4016,7 @@
                 const apiUrl = document.getElementById('apiUrl').value || window.location.origin;
                 eventUrlEl.value = apiUrl.replace(/\/$/, '') + '/api/feishu/events';
             }
+            applyDeviceInfo(deviceInfo);
             loadSystemSettings();
             
             initRealtimeChart();
@@ -3555,6 +4030,7 @@
             if (tempDistChart) tempDistChart.resize();
             if (anomalyChart) anomalyChart.resize();
             if (map && map.resize) map.resize();
+            if (deviceViewer) deviceViewer.resize();
             
             connectChatWebSocket();
         });

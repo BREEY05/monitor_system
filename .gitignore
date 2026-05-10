@@ -16,6 +16,7 @@ monitor_data.db
 *.sqlite3
 server*.log
 *.log
+static/uploads/
 
 # Local notes / task artifacts
 findings.md

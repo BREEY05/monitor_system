@@ -44,6 +44,9 @@ DB_PATH = BASE_DIR / "monitor_data.db"
 CONFIG_PATH = BASE_DIR / "config.json"
 STATIC_DIR = BASE_DIR / "static"
 STATIC_DIR.mkdir(exist_ok=True)
+UPLOAD_DIR = STATIC_DIR / "uploads"
+DEVICE_MODEL_DIR = UPLOAD_DIR / "device_models"
+DEVICE_MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
 # ==================== 配置 ====================
 CONFIG = {
@@ -70,7 +73,16 @@ CONFIG = {
     "postgres_dsn": "",
     "rag_enabled": True,
     "agent_search_enabled": True,
-    "rag_top_k": 4
+    "rag_top_k": 4,
+    "device_info": {
+        "name": "工业设备 #01",
+        "latitude": "39.90923",
+        "longitude": "116.397428",
+        "registered_at": "",
+        "status": "运行中",
+        "model_url": "",
+        "model_filename": ""
+    }
 }
 
 def load_config():
@@ -1805,9 +1817,12 @@ async def capture_image():
         return {"success": True, "path": path}
     return {"success": False, "message": "摄像头不可用"}
 
-@app.get("/static/{filename}")
-async def get_static(filename: str):
-    return FileResponse(STATIC_DIR / filename)
+@app.get("/static/{path:path}")
+async def get_static(path: str):
+    target = (STATIC_DIR / path).resolve()
+    if not str(target).startswith(str(STATIC_DIR.resolve())) or not target.exists() or not target.is_file():
+        raise HTTPException(status_code=404, detail="文件不存在")
+    return FileResponse(target)
 
 @app.websocket("/ws/sensor")
 async def websocket_endpoint(websocket: WebSocket):
@@ -1860,6 +1875,27 @@ async def update_settings(settings: dict):
 @app.get("/api/settings")
 async def get_settings():
     return CONFIG
+
+@app.post("/api/device/model")
+async def upload_device_model(file: UploadFile = File(...)):
+    suffix = Path(file.filename or "").suffix.lower()
+    if suffix not in {".glb", ".gltf", ".bin"}:
+        raise HTTPException(status_code=400, detail="仅支持 .glb/.gltf/.bin 设备模型文件")
+    safe_stem = re.sub(r"[^a-zA-Z0-9_-]+", "_", Path(file.filename).stem).strip("_") or "device_model"
+    filename = f"{safe_stem}_{int(time.time())}{suffix}"
+    filepath = DEVICE_MODEL_DIR / filename
+    data = await file.read()
+    if not data:
+        raise HTTPException(status_code=400, detail="模型文件不能为空")
+    if len(data) > 80 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="模型文件不能超过 80MB")
+    filepath.write_bytes(data)
+
+    device_info = CONFIG.setdefault("device_info", {})
+    device_info["model_url"] = f"/static/uploads/device_models/{filename}"
+    device_info["model_filename"] = file.filename
+    save_config()
+    return {"success": True, "model_url": device_info["model_url"], "filename": file.filename}
 
 # ==================== 启动服务 ====================
 def start_server():
