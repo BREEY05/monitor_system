@@ -943,6 +943,34 @@
             border-radius: 8px;
         }
 
+        .device-switchbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 12px 14px;
+        }
+
+        .device-switchbar label {
+            font-size: 13px;
+            color: #374151;
+            font-weight: 700;
+        }
+
+        .device-switchbar select {
+            min-width: 220px;
+            padding: 9px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #111827;
+            background: #fff;
+        }
+
         #deviceModelCanvas {
             width: 100%;
             height: 100%;
@@ -1022,6 +1050,16 @@
             height: 7px;
             border-radius: 50%;
             background: currentColor;
+        }
+
+        .device-list-setting {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .device-list-setting select {
+            flex: 1;
         }
 
         /* ===== 图表页面 ===== */
@@ -1180,6 +1218,40 @@
             display: flex;
             gap: 8px;
             z-index: 100;
+        }
+
+        .map-device-selector {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            background: rgba(255, 255, 255, 0.94);
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
+        }
+
+        .map-device-selector label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+            white-space: nowrap;
+        }
+
+        .map-device-selector select {
+            min-width: 170px;
+            max-width: 260px;
+            height: 34px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: #fff;
+            color: #111827;
+            font-size: 13px;
+            padding: 0 8px;
         }
 
         .map-style-btn {
@@ -1922,6 +1994,25 @@
             .settings-grid {
                 grid-template-columns: 1fr;
             }
+
+            .map-toolbar {
+                left: 10px;
+                right: 10px;
+                flex-wrap: wrap;
+            }
+
+            .map-device-selector {
+                top: auto;
+                left: 10px;
+                right: 10px;
+                bottom: 16px;
+                justify-content: space-between;
+            }
+
+            .map-device-selector select {
+                min-width: 0;
+                flex: 1;
+            }
         }
     </style>
 </head>
@@ -2259,6 +2350,10 @@
                 <div class="page" id="page-map">
                     <div class="map-container">
                         <div id="amap-container"></div>
+                        <div class="map-device-selector">
+                            <label for="mapDeviceSelect">选择设备</label>
+                            <select id="mapDeviceSelect" onchange="focusMapDevice(this.value)"></select>
+                        </div>
                         <div class="map-toolbar">
                             <button class="map-style-btn active" onclick="switchMapStyle('normal')">标准</button>
                             <button class="map-style-btn" onclick="switchMapStyle('satellite')">卫星</button>
@@ -2282,6 +2377,10 @@
 
                 <!-- 设备情况 -->
                 <div class="page" id="page-device-status">
+                    <div class="device-switchbar">
+                        <label for="deviceSwitchSelect">当前设备</label>
+                        <select id="deviceSwitchSelect" onchange="selectDevice(this.value)"></select>
+                    </div>
                     <div class="device-status-layout">
                         <div class="device-model-panel">
                             <canvas id="deviceModelCanvas"></canvas>
@@ -2340,6 +2439,10 @@
                             </div>
                             <button type="button" class="save-btn" onclick="testDatabaseConnection()">测试连接</button>
                             <button type="button" class="save-btn" style="margin-top:8px;background:#10b981;" onclick="saveSettings()">保存数据库配置</button>
+                            <div class="setting-field">
+                                <label class="setting-label">Supabase Storage Bucket</label>
+                                <input type="text" class="setting-input" id="supabaseStorageBucket" placeholder="device-models">
+                            </div>
                         </div>
 
                         <div class="setting-group">
@@ -2357,6 +2460,13 @@
                         </div>
                         <div class="setting-group">
                             <h3 class="setting-group-title">设备情况配置</h3>
+                            <div class="setting-field">
+                                <label class="setting-label">选择设备</label>
+                                <div class="device-list-setting">
+                                    <select class="setting-select" id="deviceEditSelect" onchange="selectDevice(this.value)"></select>
+                                    <button type="button" class="save-btn" style="width:auto;padding:10px 14px;" onclick="createNewDevice()">新增设备</button>
+                                </div>
+                            </div>
                             <div class="setting-field">
                                 <label class="setting-label">设备名称</label>
                                 <input type="text" class="setting-input" id="deviceNameInput" placeholder="工业设备 #01">
@@ -2525,7 +2635,10 @@
         let map = null;
         let ws = null;
         let wsConnected = false;
+        let devices = [];
+        let selectedDeviceId = 'device-1';
         let deviceInfo = {
+            id: 'device-1',
             name: '工业设备 #01',
             latitude: '39.90923',
             longitude: '116.397428',
@@ -3233,7 +3346,7 @@
                 return;
             }
             if (map) {
-                locateByIP();
+                refreshDeviceMapMarkers();
                 return;
             }
             
@@ -3259,7 +3372,7 @@
                         container.style.height = '100%';
                     }
                     
-                    locateByIP();
+                    refreshDeviceMapMarkers();
                 } catch(e) {
                     console.error('地图初始化失败:', e);
                     showStaticMap();
@@ -3382,17 +3495,49 @@
             });
         }
 
+        function focusMapDevice(id, attempt = 0) {
+            const target = devices.find(device => device.id === id);
+            if (!target) return;
+            selectDevice(id);
+
+            const lng = parseFloat(target.longitude);
+            const lat = parseFloat(target.latitude);
+            if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+                alert('该设备未配置有效经纬度');
+                return;
+            }
+
+            if (!map) {
+                const key = document.getElementById('amapKey')?.value;
+                if (!key) {
+                    alert('请先在系统设置中配置高德地图 API Key');
+                    return;
+                }
+                if (attempt >= 4) {
+                    alert('地图尚未初始化完成，请稍后重试');
+                    return;
+                }
+                initAMap();
+                setTimeout(() => focusMapDevice(id, attempt + 1), 800);
+                return;
+            }
+
+            if (window.AMap && map.setZoomAndCenter) {
+                map.setZoomAndCenter(17, [lng, lat], true);
+            } else {
+                map.setCenter([lng, lat]);
+                map.setZoom(17);
+            }
+
+            const marker = deviceMapMarkersById.get(id);
+            if (marker && marker.setAnimation) {
+                marker.setAnimation('AMAP_ANIMATION_BOUNCE');
+                setTimeout(() => marker.setAnimation(null), 1400);
+            }
+        }
+
         function locateDevice(id) {
-            if (!map) return;
-            const positions = [
-                [116.397428, 39.90923],
-                [116.400428, 39.91023],
-                [116.395428, 39.90823],
-                [116.398428, 39.91123],
-                [116.396428, 39.90723]
-            ];
-            map.setCenter(positions[id - 1]);
-            map.setZoom(17);
+            focusMapDevice(id);
         }
 
         function switchMapStyle(style) {
@@ -3435,6 +3580,49 @@
         }
 
         function searchDevice(e) {}
+
+        let deviceMapMarkers = [];
+        let deviceMapMarkersById = new Map();
+
+        function clearDeviceMarkers() {
+            if (map && deviceMapMarkers.length) {
+                map.remove(deviceMapMarkers);
+            }
+            deviceMapMarkers = [];
+            deviceMapMarkersById.clear();
+        }
+
+        function refreshDeviceMapMarkers() {
+            if (!map || !window.AMap) return;
+            clearDeviceMarkers();
+            const points = [];
+            devices.forEach((device) => {
+                const lng = parseFloat(device.longitude);
+                const lat = parseFloat(device.latitude);
+                if (!Number.isFinite(lng) || !Number.isFinite(lat)) return;
+                const marker = new AMap.Marker({
+                    position: [lng, lat],
+                    title: device.name || '设备',
+                    label: {
+                        content: device.name || '设备',
+                        direction: 'top'
+                    }
+                });
+                marker.on('click', () => {
+                    selectDevice(device.id);
+                    switchPage('device-status');
+                });
+                map.add(marker);
+                deviceMapMarkers.push(marker);
+                deviceMapMarkersById.set(device.id, marker);
+                points.push([lng, lat]);
+            });
+            if (points.length === 1) {
+                map.setZoomAndCenter(15, points[0], true);
+            } else if (points.length > 1) {
+                map.setFitView(deviceMapMarkers, false, [60, 60, 60, 60]);
+            }
+        }
 
         function captureImage(id) {
             alert('摄像头 #' + id + ' 截图功能 - 需要接入真实视频流');
@@ -3610,6 +3798,7 @@
 
         function getDevicePayload() {
             return {
+                id: selectedDeviceId || deviceInfo.id || `device-${Date.now()}`,
                 name: document.getElementById('deviceNameInput')?.value || deviceInfo.name || '工业设备 #01',
                 longitude: document.getElementById('deviceLongitudeInput')?.value || deviceInfo.longitude || '',
                 latitude: document.getElementById('deviceLatitudeInput')?.value || deviceInfo.latitude || '',
@@ -3618,6 +3807,116 @@
                 model_url: deviceInfo.model_url || '',
                 model_filename: deviceInfo.model_filename || ''
             };
+        }
+
+        function normalizeDevices(settings = {}) {
+            const list = Array.isArray(settings.devices) ? settings.devices : [];
+            if (list.length) {
+                devices = list.map((device, index) => ({
+                    id: device.id || `device-${index + 1}`,
+                    name: device.name || `工业设备 #${index + 1}`,
+                    longitude: device.longitude || '',
+                    latitude: device.latitude || '',
+                    registered_at: device.registered_at || '',
+                    status: device.status || '运行中',
+                    model_url: device.model_url || '',
+                    model_filename: device.model_filename || ''
+                }));
+            } else {
+                const legacy = settings.device_info || deviceInfo;
+                devices = [{
+                    id: legacy.id || 'device-1',
+                    name: legacy.name || '工业设备 #01',
+                    longitude: legacy.longitude || '116.397428',
+                    latitude: legacy.latitude || '39.90923',
+                    registered_at: legacy.registered_at || '',
+                    status: legacy.status || '运行中',
+                    model_url: legacy.model_url || '',
+                    model_filename: legacy.model_filename || ''
+                }];
+            }
+            selectedDeviceId = settings.selected_device_id || selectedDeviceId || devices[0].id;
+            if (!devices.some(device => device.id === selectedDeviceId)) {
+                selectedDeviceId = devices[0].id;
+            }
+            deviceInfo = devices.find(device => device.id === selectedDeviceId) || devices[0];
+            renderDeviceSelectors();
+            applyDeviceInfo(deviceInfo);
+            refreshDeviceMapMarkers();
+        }
+
+        function renderDeviceSelectors() {
+            const selects = ['deviceSwitchSelect', 'deviceEditSelect', 'mapDeviceSelect']
+                .map(id => document.getElementById(id))
+                .filter(Boolean);
+            selects.forEach((select) => {
+                const current = select.value || selectedDeviceId;
+                select.innerHTML = devices.map(device => (
+                    `<option value="${device.id}">${device.name || device.id}</option>`
+                )).join('');
+                select.value = devices.some(device => device.id === current) ? current : selectedDeviceId;
+            });
+        }
+
+        function selectDevice(id) {
+            const target = devices.find(device => device.id === id);
+            if (!target) return;
+            selectedDeviceId = id;
+            deviceInfo = target;
+            renderDeviceSelectors();
+            applyDeviceInfo(deviceInfo);
+        }
+
+        function createNewDevice() {
+            const id = `device-${Date.now()}`;
+            const nextNumber = devices.length + 1;
+            const device = {
+                id,
+                name: `工业设备 #${String(nextNumber).padStart(2, '0')}`,
+                longitude: '',
+                latitude: '',
+                registered_at: new Date().toISOString().slice(0, 10),
+                status: '运行中',
+                model_url: '',
+                model_filename: ''
+            };
+            devices.push(device);
+            selectedDeviceId = id;
+            deviceInfo = device;
+            renderDeviceSelectors();
+            applyDeviceInfo(device);
+            saveAllDevices(false).then(() => {
+                setDeviceStatus('新设备已创建，请完善信息并上传模型', 'success');
+            }).catch((e) => {
+                setDeviceStatus(e.message || '新设备保存失败', 'error');
+            });
+        }
+
+        async function saveAllDevices(showAlert = false) {
+            const current = getDevicePayload();
+            const index = devices.findIndex(device => device.id === current.id);
+            if (index >= 0) {
+                devices[index] = current;
+            } else {
+                devices.push(current);
+            }
+            selectedDeviceId = current.id;
+            deviceInfo = current;
+            const apiUrl = document.getElementById('apiUrl').value || 'http://localhost:8000';
+            const res = await fetch(`${apiUrl}/api/settings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    devices,
+                    selected_device_id: selectedDeviceId,
+                    device_info: deviceInfo
+                })
+            });
+            if (!res.ok) throw new Error('设备配置保存失败，请检查后端服务');
+            renderDeviceSelectors();
+            applyDeviceInfo(deviceInfo);
+            refreshDeviceMapMarkers();
+            if (showAlert) setDeviceStatus('设备信息已保存，地图已同步', 'success');
         }
 
         function applyDeviceInfo(info = {}) {
@@ -3665,15 +3964,7 @@
         }
 
         async function saveDeviceSettings(showAlert = true) {
-            deviceInfo = { ...deviceInfo, ...getDevicePayload() };
-            const apiUrl = document.getElementById('apiUrl').value || 'http://localhost:8000';
-            await fetch(`${apiUrl}/api/settings`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ device_info: deviceInfo })
-            });
-            applyDeviceInfo(deviceInfo);
-            if (showAlert) setDeviceStatus('设备信息已保存', 'success');
+            await saveAllDevices(showAlert);
         }
 
         async function uploadDeviceModel() {
@@ -3682,23 +3973,27 @@
                 alert('请选择 .glb/.gltf 设备模型文件');
                 return;
             }
-            await saveDeviceSettings(false);
+            const apiUrl = document.getElementById('apiUrl').value || 'http://localhost:8000';
             const form = new FormData();
             form.append('file', input.files[0]);
-            const apiUrl = document.getElementById('apiUrl').value || 'http://localhost:8000';
+            form.append('device_id', selectedDeviceId);
+            deviceInfo = { ...deviceInfo, ...getDevicePayload() };
             setDeviceStatus('模型上传中...', 'info');
             try {
                 const res = await fetch(`${apiUrl}/api/device/model`, { method: 'POST', body: form });
-                const data = await res.json();
+                const data = await res.json().catch(() => ({}));
                 if (!res.ok || !data.success) throw new Error(data.detail || data.message || '上传失败');
                 input.value = '';
                 deviceInfo.model_url = data.model_url;
                 deviceInfo.model_filename = data.filename;
-                await saveDeviceSettings(false);
+                const index = devices.findIndex(device => device.id === selectedDeviceId);
+                if (index >= 0) devices[index] = { ...devices[index], ...deviceInfo };
+                await saveAllDevices(false);
                 applyDeviceInfo(deviceInfo);
-                setDeviceStatus(`模型已上传：${data.filename}`, 'success');
+                const storageText = data.storage_backend === 'supabase' ? '云端' : '本地兜底';
+                setDeviceStatus(`模型已上传到${storageText}：${data.filename}`, data.storage_backend === 'supabase' ? 'success' : 'info');
             } catch (e) {
-                setDeviceStatus(e.message || '模型上传失败', 'error');
+                setDeviceStatus(e.message || '模型上传失败，请检查后端服务是否运行', 'error');
             }
         }
 
@@ -3784,9 +4079,6 @@
             } else {
                 deviceViewer.resize();
             }
-            if (deviceInfo.model_url && !deviceViewer.loadedUrl) {
-                loadDeviceModel(deviceInfo.model_url);
-            }
         }
 
         function loadDeviceModel(url) {
@@ -3799,15 +4091,17 @@
                 return;
             }
             initDeviceViewer();
-            if (!deviceViewer || deviceViewer.loadedUrl === url) {
+            if (!deviceViewer || deviceViewer.loadedUrl === url || deviceViewer.loadingUrl === url) {
                 showDeviceModelEmpty(false);
                 return;
             }
             const { THREE, GLTFLoader } = window.Device3D;
+            deviceViewer.loadingUrl = url;
             showDeviceModelLoading(true);
             showDeviceModelEmpty(false);
             const loader = new GLTFLoader();
             loader.load(url, (gltf) => {
+                deviceViewer.loadingUrl = "";
                 if (deviceViewer.model) {
                     deviceViewer.model.traverse((obj) => {
                         if (obj.isMesh) {
@@ -3856,6 +4150,7 @@
                 deviceViewer.requestRender();
             }, undefined, (error) => {
                 console.error('设备模型加载失败:', error);
+                if (deviceViewer) deviceViewer.loadingUrl = "";
                 showDeviceModelLoading(false);
                 showDeviceModelEmpty(true);
                 setDeviceStatus('模型加载失败，请确认 glTF 文件及资源完整', 'error');
@@ -3887,6 +4182,7 @@
             localStorage.setItem('monitor_postgresDsn', document.getElementById('postgresDsn').value);
             localStorage.setItem('monitor_supabaseUrl', document.getElementById('supabaseUrl').value);
             localStorage.setItem('monitor_supabaseKey', document.getElementById('supabaseKey').value);
+            localStorage.setItem('monitor_supabaseStorageBucket', document.getElementById('supabaseStorageBucket').value || 'device-models');
             
             const apiUrl = document.getElementById('apiUrl').value || 'http://localhost:8000';
             fetch(`${apiUrl}/api/settings`, {
@@ -3902,6 +4198,9 @@
                     postgres_dsn: document.getElementById('postgresDsn').value,
                     supabase_url: document.getElementById('supabaseUrl').value,
                     supabase_key: document.getElementById('supabaseKey').value,
+                    supabase_storage_bucket: document.getElementById('supabaseStorageBucket').value || 'device-models',
+                    devices,
+                    selected_device_id: selectedDeviceId,
                     device_info: getDevicePayload()
                 })
             }).catch(e => console.warn('同步设置到后端失败:', e));
@@ -3939,7 +4238,8 @@
                 if (settings.postgres_dsn) document.getElementById('postgresDsn').value = settings.postgres_dsn;
                 if (settings.supabase_url) document.getElementById('supabaseUrl').value = settings.supabase_url;
                 if (settings.supabase_key) document.getElementById('supabaseKey').value = settings.supabase_key;
-                if (settings.device_info) applyDeviceInfo(settings.device_info);
+                document.getElementById('supabaseStorageBucket').value = settings.supabase_storage_bucket || 'device-models';
+                normalizeDevices(settings);
                 document.getElementById('feishuForwardReplies').checked = settings.feishu_forward_ai_replies !== false;
                 document.getElementById('feishuReceiveMessages').checked = settings.feishu_receive_group_messages !== false;
                 const localPostgresDsn = localStorage.getItem('monitor_postgresDsn') || '';
@@ -3953,7 +4253,8 @@
                             database_backend: 'postgres',
                             postgres_dsn: localPostgresDsn,
                             supabase_url: document.getElementById('supabaseUrl').value,
-                            supabase_key: document.getElementById('supabaseKey').value
+                            supabase_key: document.getElementById('supabaseKey').value,
+                            supabase_storage_bucket: document.getElementById('supabaseStorageBucket').value || 'device-models'
                         })
                     }).catch(e => console.warn('恢复本地数据库配置失败:', e));
                 }
@@ -4011,12 +4312,14 @@
             if (savedSupabaseUrl) document.getElementById('supabaseUrl').value = savedSupabaseUrl;
             const savedSupabaseKey = localStorage.getItem('monitor_supabaseKey');
             if (savedSupabaseKey) document.getElementById('supabaseKey').value = savedSupabaseKey;
+            const savedStorageBucket = localStorage.getItem('monitor_supabaseStorageBucket');
+            document.getElementById('supabaseStorageBucket').value = savedStorageBucket || 'device-models';
             const eventUrlEl = document.getElementById('feishuEventUrl');
             if (eventUrlEl && !eventUrlEl.value) {
                 const apiUrl = document.getElementById('apiUrl').value || window.location.origin;
                 eventUrlEl.value = apiUrl.replace(/\/$/, '') + '/api/feishu/events';
             }
-            applyDeviceInfo(deviceInfo);
+            normalizeDevices({ devices: [deviceInfo], selected_device_id: deviceInfo.id, device_info: deviceInfo });
             loadSystemSettings();
             
             initRealtimeChart();

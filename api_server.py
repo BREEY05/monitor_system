@@ -70,11 +70,15 @@ CONFIG = {
     "database_backend": "sqlite",
     "supabase_url": "",
     "supabase_key": "",
+    "supabase_storage_bucket": "device-models",
     "postgres_dsn": "",
     "rag_enabled": True,
     "agent_search_enabled": True,
     "rag_top_k": 4,
+    "selected_device_id": "device-1",
+    "devices": [],
     "device_info": {
+        "id": "device-1",
         "name": "工业设备 #01",
         "latitude": "39.90923",
         "longitude": "116.397428",
@@ -106,6 +110,67 @@ def save_config():
         logger.warning(f"保存配置失败: {e}")
 
 load_config()
+
+def normalize_device_config():
+    legacy = CONFIG.get("device_info") if isinstance(CONFIG.get("device_info"), dict) else {}
+    devices = CONFIG.get("devices")
+    if not isinstance(devices, list) or not devices:
+        device = {
+            "id": legacy.get("id") or "device-1",
+            "name": legacy.get("name") or "工业设备 #01",
+            "latitude": legacy.get("latitude") or "39.90923",
+            "longitude": legacy.get("longitude") or "116.397428",
+            "registered_at": legacy.get("registered_at") or "",
+            "status": legacy.get("status") or "运行中",
+            "model_url": legacy.get("model_url") or "",
+            "model_filename": legacy.get("model_filename") or ""
+        }
+        CONFIG["devices"] = [device]
+        CONFIG["selected_device_id"] = CONFIG.get("selected_device_id") or device["id"]
+    else:
+        normalized = []
+        for idx, device in enumerate(devices):
+            if not isinstance(device, dict):
+                continue
+            normalized.append({
+                "id": device.get("id") or f"device-{idx + 1}",
+                "name": device.get("name") or f"工业设备 #{idx + 1:02d}",
+                "latitude": device.get("latitude") or "",
+                "longitude": device.get("longitude") or "",
+                "registered_at": device.get("registered_at") or "",
+                "status": device.get("status") or "运行中",
+                "model_url": device.get("model_url") or "",
+                "model_filename": device.get("model_filename") or ""
+            })
+        CONFIG["devices"] = normalized or [{
+            "id": "device-1",
+            "name": "工业设备 #01",
+            "latitude": "39.90923",
+            "longitude": "116.397428",
+            "registered_at": "",
+            "status": "运行中",
+            "model_url": "",
+            "model_filename": ""
+        }]
+    selected_id = CONFIG.get("selected_device_id")
+    if not any(device.get("id") == selected_id for device in CONFIG["devices"]):
+        CONFIG["selected_device_id"] = CONFIG["devices"][0]["id"]
+    CONFIG["device_info"] = next(
+        (device for device in CONFIG["devices"] if device.get("id") == CONFIG["selected_device_id"]),
+        CONFIG["devices"][0]
+    )
+
+normalize_device_config()
+
+def config_for_cloud() -> Dict[str, Any]:
+    hidden_keys = {"postgres_dsn"}
+    return {key: value for key, value in CONFIG.items() if key not in hidden_keys}
+
+def apply_cloud_settings(settings: Dict[str, Any]):
+    if not isinstance(settings, dict):
+        return
+    CONFIG.update(settings)
+    normalize_device_config()
 
 # ==================== Ollama 服务管理 ====================
 def find_ollama_executable() -> Optional[str]:
@@ -262,6 +327,147 @@ def connect_postgres():
         return None
 
 
+def init_cloud_tables(conn: DatabaseConnection):
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS app_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+    ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS devices (
+            id TEXT PRIMARY KEY,
+            name TEXT,
+            latitude TEXT,
+            longitude TEXT,
+            registered_at TEXT,
+            status TEXT,
+            model_url TEXT,
+            model_filename TEXT,
+            updated_at TEXT NOT NULL
+        )
+    ''')
+    conn.commit()
+
+
+def load_cloud_config() -> bool:
+    if get_database_backend() != "postgres":
+        return False
+    raw_conn = connect_postgres()
+    if not raw_conn:
+        return False
+    conn = DatabaseConnection(raw_conn, "postgres")
+    try:
+        init_cloud_tables(conn)
+        c = conn.cursor()
+        c.execute("SELECT value FROM app_settings WHERE key = ?", ("config",))
+        row = c.fetchone()
+        if not row:
+            return False
+        settings = json.loads(row[0])
+        apply_cloud_settings(settings)
+        logger.info("已从云端数据库加载配置")
+        return True
+    except Exception as e:
+        logger.warning(f"读取云端配置失败，继续使用本地配置: {e}")
+        return False
+    finally:
+        conn.close()
+
+
+def save_cloud_config() -> bool:
+    if get_database_backend() != "postgres":
+        return False
+    raw_conn = connect_postgres()
+    if not raw_conn:
+        return False
+    conn = DatabaseConnection(raw_conn, "postgres")
+    try:
+        init_cloud_tables(conn)
+        now = datetime.now().isoformat()
+        c = conn.cursor()
+        c.execute(
+            """
+            INSERT INTO app_settings (key, value, updated_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at
+            """,
+            ("config", json.dumps(config_for_cloud(), ensure_ascii=False), now)
+        )
+        for device in CONFIG.get("devices", []):
+            c.execute(
+                """
+                INSERT INTO devices (id, name, latitude, longitude, registered_at, status, model_url, model_filename, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (id) DO UPDATE SET
+                    name = EXCLUDED.name,
+                    latitude = EXCLUDED.latitude,
+                    longitude = EXCLUDED.longitude,
+                    registered_at = EXCLUDED.registered_at,
+                    status = EXCLUDED.status,
+                    model_url = EXCLUDED.model_url,
+                    model_filename = EXCLUDED.model_filename,
+                    updated_at = EXCLUDED.updated_at
+                """,
+                (
+                    device.get("id"),
+                    device.get("name", ""),
+                    device.get("latitude", ""),
+                    device.get("longitude", ""),
+                    device.get("registered_at", ""),
+                    device.get("status", ""),
+                    device.get("model_url", ""),
+                    device.get("model_filename", ""),
+                    now
+                )
+            )
+        conn.commit()
+        logger.info("配置已同步到云端数据库")
+        return True
+    except Exception as e:
+        logger.warning(f"同步配置到云端数据库失败: {e}")
+        return False
+    finally:
+        conn.close()
+
+
+def upload_device_model_to_supabase(data: bytes, filename: str, content_type: str):
+    supabase_url = CONFIG.get("supabase_url", "").strip().rstrip("/")
+    supabase_key = CONFIG.get("supabase_key", "").strip()
+    bucket = (CONFIG.get("supabase_storage_bucket") or "device-models").strip()
+    if not supabase_url or not supabase_key or not bucket:
+        return None, "Supabase URL、Key 或 Storage Bucket 未配置"
+    try:
+        import requests
+        object_path = f"device_models/{filename}"
+        upload_url = f"{supabase_url}/storage/v1/object/{bucket}/{object_path}"
+        headers = {
+            "apikey": supabase_key,
+            "Authorization": f"Bearer {supabase_key}",
+            "Content-Type": content_type or "model/gltf-binary",
+            "x-upsert": "true"
+        }
+        response = requests.post(upload_url, headers=headers, data=data, timeout=60)
+        if response.status_code >= 400:
+            error_text = response.text[:500]
+            logger.warning(f"Supabase Storage 上传失败: {response.status_code} {error_text}")
+            return None, f"Supabase Storage 上传失败：HTTP {response.status_code} - {error_text}"
+        return f"{supabase_url}/storage/v1/object/public/{bucket}/{object_path}", None
+    except Exception as e:
+        logger.warning(f"Supabase Storage 上传异常: {e}")
+        return None, f"Supabase Storage 上传异常：{e}"
+
+
+def is_supabase_storage_configured() -> bool:
+    return bool(
+        CONFIG.get("supabase_url", "").strip()
+        and CONFIG.get("supabase_key", "").strip()
+        and (CONFIG.get("supabase_storage_bucket") or "device-models").strip()
+    )
+
+
 def init_db():
     backend = get_database_backend()
     raw_conn = connect_postgres() if backend == "postgres" else None
@@ -330,6 +536,9 @@ def init_db():
             content TEXT NOT NULL
         )
     ''')
+
+    if conn.backend == "postgres":
+        init_cloud_tables(conn)
     
     conn.commit()
     conn.close()
@@ -1106,7 +1315,9 @@ async def test_database_connection(request: DatabaseTestRequest):
             test_conn = psycopg2.connect(CONFIG["postgres_dsn"])
             test_conn.close()
         init_db()
+        load_cloud_config()
         save_config()
+        save_cloud_config()
         return {"success": True, "backend": get_database_backend(), "message": "数据库连接成功，表结构已检查"}
     except Exception as e:
         CONFIG["postgres_dsn"] = old_dsn
@@ -1867,17 +2078,21 @@ async def websocket_endpoint(websocket: WebSocket):
 async def update_settings(settings: dict):
     global CONFIG
     CONFIG.update(settings)
+    normalize_device_config()
     if settings.get("postgres_dsn") is not None or settings.get("database_backend") is not None:
         init_db()
+        load_cloud_config()
     save_config()
-    return {"success": True}
+    cloud_saved = save_cloud_config()
+    return {"success": True, "cloud_saved": cloud_saved, "backend": get_database_backend()}
 
 @app.get("/api/settings")
 async def get_settings():
+    load_cloud_config()
     return CONFIG
 
 @app.post("/api/device/model")
-async def upload_device_model(file: UploadFile = File(...)):
+async def upload_device_model(file: UploadFile = File(...), device_id: Optional[str] = Form(None)):
     suffix = Path(file.filename or "").suffix.lower()
     if suffix not in {".glb", ".gltf", ".bin"}:
         raise HTTPException(status_code=400, detail="仅支持 .glb/.gltf/.bin 设备模型文件")
@@ -1889,17 +2104,41 @@ async def upload_device_model(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="模型文件不能为空")
     if len(data) > 80 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="模型文件不能超过 80MB")
-    filepath.write_bytes(data)
+    storage_configured = is_supabase_storage_configured()
+    model_url, storage_error = upload_device_model_to_supabase(data, filename, file.content_type or "")
+    storage_backend = "supabase" if model_url else "local"
+    if not model_url:
+        if storage_configured:
+            raise HTTPException(status_code=502, detail=storage_error or "Supabase Storage 上传失败，请检查 Supabase Key、Bucket 权限和文件大小限制")
+        filepath.write_bytes(data)
+        model_url = f"/static/uploads/device_models/{filename}"
 
-    device_info = CONFIG.setdefault("device_info", {})
-    device_info["model_url"] = f"/static/uploads/device_models/{filename}"
+    device_info = next(
+        (device for device in CONFIG.get("devices", []) if device.get("id") == (device_id or CONFIG.get("selected_device_id"))),
+        CONFIG.setdefault("device_info", {})
+    )
+    device_info["model_url"] = model_url
     device_info["model_filename"] = file.filename
+    for idx, device in enumerate(CONFIG.get("devices", [])):
+        if device.get("id") == device_info.get("id"):
+            CONFIG["devices"][idx] = device_info
+            break
+    CONFIG["device_info"] = device_info
     save_config()
-    return {"success": True, "model_url": device_info["model_url"], "filename": file.filename}
+    cloud_saved = save_cloud_config()
+    return {
+        "success": True,
+        "device_id": device_info.get("id"),
+        "model_url": device_info["model_url"],
+        "filename": file.filename,
+        "storage_backend": storage_backend,
+        "cloud_saved": cloud_saved
+    }
 
 # ==================== 启动服务 ====================
 def start_server():
     init_db()
+    load_cloud_config()
     
     logger.info("=" * 50)
     logger.info("  工业环境监控系统 - 纯软演示版")
