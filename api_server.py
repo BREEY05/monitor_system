@@ -66,6 +66,8 @@ CONFIG = {
         "vibration": 0.5
     },
     "alarm_trigger_count": 3,
+    "alarm_window_seconds": 60,
+    "alarm_cooldown_seconds": 300,
     "sensor_interval": 5,
     "database_backend": "sqlite",
     "supabase_url": "",
@@ -484,6 +486,33 @@ def init_db():
             vibration REAL
         )
     ''')
+
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS sensor_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            device_id TEXT,
+            area TEXT,
+            sensor_type TEXT NOT NULL,
+            value REAL NOT NULL,
+            threshold REAL,
+            status TEXT NOT NULL
+        )
+    ''')
+
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS anomaly_sensor_data (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            device_id TEXT,
+            area TEXT,
+            sensor_type TEXT NOT NULL,
+            value REAL NOT NULL,
+            threshold REAL,
+            status TEXT NOT NULL,
+            alert_batch_id TEXT
+        )
+    ''')
     
     c.execute('''
         CREATE TABLE IF NOT EXISTS alerts (
@@ -558,6 +587,18 @@ class SensorData(BaseModel):
     humidity: Optional[float] = None
     pressure: Optional[float] = None
     vibration: Optional[float] = None
+    device_id: Optional[str] = "raspberry-pi-5"
+    area: Optional[str] = "A区"
+    timestamp: Optional[str] = None
+
+class RaspberrySensorPayload(BaseModel):
+    temperature: Optional[float] = None
+    humidity: Optional[float] = None
+    pressure: Optional[float] = None
+    vibration: Optional[float] = None
+    device_id: Optional[str] = "raspberry-pi-5"
+    area: Optional[str] = "A区"
+    timestamp: Optional[str] = None
 
 class ChatRequest(BaseModel):
     message: str
@@ -694,12 +735,16 @@ manager = ConnectionManager()
 # ==================== 报警检测 ====================
 class AlarmChecker:
     def __init__(self):
-        self.alert_counts = {}
+        self.anomaly_windows = {}
         self.last_alert_time = {}
     
-    def check(self, data: SensorData) -> List[Dict]:
+    def check(self, data: SensorData, timestamp: str = None, device_id: str = "", area: str = "") -> List[Dict]:
         alerts = []
         now = datetime.now()
+        event_time = timestamp or now.isoformat()
+        window_seconds = int(CONFIG.get("alarm_window_seconds", 60))
+        cooldown_seconds = int(CONFIG.get("alarm_cooldown_seconds", 300))
+        trigger_count = int(CONFIG.get("alarm_trigger_count", 3))
         
         for sensor_type, value in [
             ("temperature", data.temperature),
@@ -714,17 +759,30 @@ class AlarmChecker:
                 continue
             
             if value > threshold:
-                key = f"{sensor_type}_count"
-                self.alert_counts[key] = self.alert_counts.get(key, 0) + 1
-                
-                if self.alert_counts[key] >= CONFIG["alarm_trigger_count"]:
-                    time_key = f"{sensor_type}_last"
-                    if time_key not in self.last_alert_time or (now - self.last_alert_time[time_key]).seconds > 300:
-                        level = "danger" if value > threshold * 1.2 else "warning"
-                        alerts.append({"type": sensor_type, "value": value, "threshold": threshold, "level": level})
-                        self.last_alert_time[time_key] = now
-            else:
-                self.alert_counts[f"{sensor_type}_count"] = 0
+                key = f"{device_id}:{area}:{sensor_type}"
+                points = self.anomaly_windows.get(key, [])
+                points.append({"time": now, "timestamp": event_time, "value": value})
+                cutoff = now - timedelta(seconds=window_seconds)
+                points = [point for point in points if point["time"] >= cutoff]
+                self.anomaly_windows[key] = points
+
+                last_alert = self.last_alert_time.get(key)
+                if len(points) >= trigger_count and (not last_alert or (now - last_alert).total_seconds() >= cooldown_seconds):
+                    level = "danger" if any(point["value"] > threshold * 1.2 for point in points) else "warning"
+                    alerts.append({
+                        "type": sensor_type,
+                        "value": value,
+                        "threshold": threshold,
+                        "level": level,
+                        "count": len(points),
+                        "window_seconds": window_seconds,
+                        "start_time": points[0]["timestamp"],
+                        "end_time": points[-1]["timestamp"],
+                        "device_id": device_id,
+                        "area": area or "未知区域",
+                        "batch_id": f"{sensor_type}-{int(now.timestamp())}"
+                    })
+                    self.last_alert_time[key] = now
         
         return alerts
     
@@ -739,7 +797,10 @@ class AlarmChecker:
         alert_id = c.lastrowid
         conn.close()
         
-        self._notify_feishu(alert, alert_id)
+        if alert.get("count") and CONFIG.get("feishu_webhook"):
+            send_feishu_text(build_alarm_message(alert))
+        else:
+            self._notify_feishu(alert, alert_id)
         self._notify_websocket(alert, alert_id)
     
     def _notify_feishu(self, alert: Dict, alert_id: int):
@@ -851,6 +912,32 @@ def send_feishu_text(text: str) -> bool:
     webhook = CONFIG.get("feishu_webhook", "").strip()
     if not webhook:
         return False
+
+
+def format_timestamp(value: str = None) -> str:
+    if not value:
+        return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).strftime("%Y-%m-%d %H:%M:%S")
+    except Exception:
+        return str(value)
+
+
+def build_alarm_message(alert: Dict) -> str:
+    names = {"temperature": "温度", "humidity": "湿度", "vibration": "振动"}
+    level = "严重" if alert.get("level") == "danger" else "预警"
+    area = alert.get("area") or "未知区域"
+    return f"""{level} 工业环境监控报警
+
+时间段: {format_timestamp(alert.get("start_time"))} 至 {format_timestamp(alert.get("end_time"))}
+异常类型: {names.get(alert.get("type"), alert.get("type"))}
+异常数量: {alert.get("count", 1)} 条
+最新数值: {alert.get("value")}
+阈值: {alert.get("threshold")}
+设备: {alert.get("device_id") or "未知设备"}
+判断: {area}有问题
+
+请及时处理。"""
     try:
         import requests
         response = requests.post(
@@ -1266,6 +1353,82 @@ sensor_reader = SensorReader()
 camera = CameraCapture()
 alarm_checker = AlarmChecker()
 
+SENSOR_META = {
+    "temperature": {"label": "温度", "unit": "°C"},
+    "humidity": {"label": "湿度", "unit": "%RH"},
+    "pressure": {"label": "气压", "unit": "hPa"},
+    "vibration": {"label": "振动", "unit": "mm/s"},
+}
+
+def sensor_status(sensor_type: str, value: Optional[float]) -> str:
+    if value is None:
+        return "missing"
+    threshold = CONFIG.get("thresholds", {}).get(sensor_type)
+    if threshold is None:
+        return "normal"
+    return "danger" if value > threshold * 1.2 else ("warning" if value > threshold else "normal")
+
+def insert_sensor_payload(payload: RaspberrySensorPayload) -> Dict[str, Any]:
+    timestamp = payload.timestamp or datetime.now().isoformat()
+    device_id = payload.device_id or "raspberry-pi-5"
+    area = payload.area or "A区"
+    data = SensorData(
+        temperature=payload.temperature,
+        humidity=payload.humidity,
+        pressure=payload.pressure,
+        vibration=payload.vibration,
+        device_id=device_id,
+        area=area,
+        timestamp=timestamp
+    )
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute(
+        "INSERT INTO sensor_data (timestamp, temperature, humidity, pressure, vibration) VALUES (?, ?, ?, ?, ?)",
+        (timestamp, data.temperature, data.humidity, data.pressure, data.vibration)
+    )
+    inserted = []
+    for sensor_type, value in [
+        ("temperature", data.temperature),
+        ("humidity", data.humidity),
+        ("pressure", data.pressure),
+        ("vibration", data.vibration),
+    ]:
+        if value is None:
+            continue
+        threshold = CONFIG.get("thresholds", {}).get(sensor_type)
+        status = sensor_status(sensor_type, value)
+        c.execute(
+            "INSERT INTO sensor_events (timestamp, device_id, area, sensor_type, value, threshold, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (timestamp, device_id, area, sensor_type, float(value), threshold, status)
+        )
+        inserted.append({"type": sensor_type, "value": float(value), "threshold": threshold, "status": status})
+        if status in {"warning", "danger"}:
+            c.execute(
+                "INSERT INTO anomaly_sensor_data (timestamp, device_id, area, sensor_type, value, threshold, status, alert_batch_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (timestamp, device_id, area, sensor_type, float(value), threshold, status, None)
+            )
+    conn.commit()
+    conn.close()
+
+    alerts = alarm_checker.check(data, timestamp=timestamp, device_id=device_id, area=area)
+    for alert in alerts:
+        alarm_checker.save_alert(alert)
+    asyncio.create_task(manager.broadcast({"type": "sensor", "data": sensor_payload_response(data, timestamp, device_id, area)}))
+    return {"timestamp": timestamp, "device_id": device_id, "area": area, "readings": inserted, "alerts": len(alerts)}
+
+def sensor_payload_response(data: SensorData, timestamp: str, device_id: str = "", area: str = "") -> Dict[str, Any]:
+    return {
+        "temperature": data.temperature,
+        "humidity": data.humidity,
+        "pressure": data.pressure,
+        "vibration": data.vibration,
+        "timestamp": timestamp,
+        "device_id": device_id,
+        "area": area,
+        "source": "database"
+    }
+
 @app.on_event("startup")
 async def on_startup():
     start_feishu_long_connection()
@@ -1395,25 +1558,26 @@ async def list_skills():
 
 @app.get("/api/sensors/latest")
 async def get_latest_sensor():
-    data = sensor_reader.read()
-    return {
-        "temperature": data.temperature,
-        "humidity": data.humidity,
-        "pressure": data.pressure,
-        "vibration": data.vibration,
-        "timestamp": datetime.now().isoformat()
-    }
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT timestamp, temperature, humidity, pressure, vibration FROM sensor_data ORDER BY timestamp DESC LIMIT 1")
+    row = c.fetchone()
+    conn.close()
+    if not row:
+        return {"source": "database", "timestamp": None, "message": "暂无树莓派传感器数据"}
+    data = SensorData(temperature=row[1], humidity=row[2], pressure=row[3], vibration=row[4])
+    return sensor_payload_response(data, row[0])
+
+@app.post("/api/raspberry/sensors")
+async def receive_raspberry_sensors(payload: RaspberrySensorPayload):
+    if all(getattr(payload, field) is None for field in ("temperature", "humidity", "pressure", "vibration")):
+        raise HTTPException(status_code=400, detail="至少需要上传一个传感器数据")
+    return {"success": True, **insert_sensor_payload(payload)}
 
 @app.get("/api/sensors/current")
 async def get_current_sensors():
     """获取当前传感器数据（供3D模型轮询使用）"""
-    data = sensor_reader.read()
-    return {
-        "temperature": data.temperature,
-        "humidity": data.humidity,
-        "vibration": data.vibration,
-        "timestamp": datetime.now().isoformat()
-    }
+    return await get_latest_sensor()
 
 @app.get("/api/config")
 async def get_config():
@@ -1460,6 +1624,56 @@ async def get_history(range: str = "day"):
         "pressure": [r[3] for r in rows if r[3] is not None],
         "vibration": [r[4] for r in rows if r[4] is not None]
     }
+
+@app.get("/api/sensor-events")
+async def get_sensor_events(limit: int = 100):
+    limit = max(1, min(limit, 500))
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute(
+        "SELECT timestamp, device_id, area, sensor_type, value, threshold, status FROM sensor_events ORDER BY timestamp DESC LIMIT ?",
+        (limit,)
+    )
+    rows = c.fetchall()
+    conn.close()
+    return [
+        {
+            "timestamp": row[0],
+            "device_id": row[1],
+            "area": row[2],
+            "sensor_type": row[3],
+            "sensor_label": SENSOR_META.get(row[3], {}).get("label", row[3]),
+            "value": row[4],
+            "threshold": row[5],
+            "status": row[6]
+        }
+        for row in rows
+    ]
+
+@app.get("/api/anomaly-data")
+async def get_anomaly_data(limit: int = 500):
+    limit = max(1, min(limit, 5000))
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute(
+        "SELECT timestamp, device_id, area, sensor_type, value, threshold, status, alert_batch_id FROM anomaly_sensor_data ORDER BY timestamp DESC LIMIT ?",
+        (limit,)
+    )
+    rows = c.fetchall()
+    conn.close()
+    return [
+        {
+            "timestamp": row[0],
+            "device_id": row[1],
+            "area": row[2],
+            "sensor_type": row[3],
+            "value": row[4],
+            "threshold": row[5],
+            "status": row[6],
+            "alert_batch_id": row[7]
+        }
+        for row in rows
+    ]
 
 @app.get("/api/alerts")
 async def get_alerts():
@@ -2040,33 +2254,7 @@ async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     try:
         while True:
-            data = sensor_reader.read()
-            
-            conn = get_db_connection()
-            c = conn.cursor()
-            c.execute(
-                "INSERT INTO sensor_data (timestamp, temperature, humidity, pressure, vibration) VALUES (?, ?, ?, ?, ?)",
-                (datetime.now().isoformat(), data.temperature, data.humidity, data.pressure, data.vibration)
-            )
-            conn.commit()
-            conn.close()
-            
-            alerts = alarm_checker.check(data)
-            for alert in alerts:
-                alarm_checker.save_alert(alert)
-            
-            await websocket.send_json({
-                "type": "sensor",
-                "data": {
-                    "temperature": data.temperature,
-                    "humidity": data.humidity,
-                    "pressure": data.pressure,
-                    "vibration": data.vibration,
-                    "timestamp": datetime.now().isoformat()
-                }
-            })
-            
-            await asyncio.sleep(CONFIG["sensor_interval"])
+            await asyncio.sleep(60)
             
     except WebSocketDisconnect:
         manager.disconnect(websocket)

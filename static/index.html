@@ -456,6 +456,46 @@
             border-color: #d1d5db;
         }
 
+        .sensor-event-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 360px;
+            overflow: auto;
+        }
+
+        .sensor-event-row {
+            display: grid;
+            grid-template-columns: 86px 1fr 92px 150px 78px;
+            gap: 10px;
+            align-items: center;
+            padding: 10px 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            background: #fff;
+            font-size: 13px;
+        }
+
+        .sensor-event-status {
+            justify-self: end;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-weight: 700;
+            font-size: 12px;
+            background: #ecfdf5;
+            color: #047857;
+        }
+
+        .sensor-event-status.warning {
+            background: #fffbeb;
+            color: #b45309;
+        }
+
+        .sensor-event-status.danger {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+
         .device-avatar {
             width: 38px;
             height: 38px;
@@ -1995,6 +2035,11 @@
                 grid-template-columns: 1fr;
             }
 
+            .sensor-event-row {
+                grid-template-columns: 1fr;
+                gap: 4px;
+            }
+
             .map-toolbar {
                 left: 10px;
                 right: 10px;
@@ -2151,9 +2196,11 @@
 
                         <div class="card">
                             <div class="card-header">
-                                <h3 class="card-title">设备状态</h3>
+                                <h3 class="card-title">传感器历史记录</h3>
                             </div>
-                            <div class="device-list">
+                            <div class="sensor-event-list" id="sensorEventList">
+                                <div style="padding:36px;text-align:center;color:#9ca3af;">等待树莓派数据...</div>
+                                <div style="display:none">
                                 <div class="device-item">
                                     <div class="device-avatar"></div>
                                     <div class="device-info">
@@ -2177,6 +2224,7 @@
                                         <div class="device-location">C区 - 入口处</div>
                                     </div>
                                     <span class="device-status-online">● 在线</span>
+                                </div>
                                 </div>
                             </div>
                         </div>
@@ -2635,6 +2683,7 @@
         let map = null;
         let ws = null;
         let wsConnected = false;
+        let sensorPollTimer = null;
         let devices = [];
         let selectedDeviceId = 'device-1';
         let deviceInfo = {
@@ -2868,6 +2917,18 @@
                 ],
                 graphic: []
             });
+        }
+
+        async function refreshDatabaseSensors() {
+            await refreshData();
+            await fetchSensorEvents();
+            if (historyChart) fetchHistoryData('hour');
+        }
+
+        function startSensorPolling() {
+            if (sensorPollTimer) clearInterval(sensorPollTimer);
+            refreshDatabaseSensors();
+            sensorPollTimer = setInterval(refreshDatabaseSensors, 5000);
         }
 
         function initHistoryChart() {
@@ -3679,11 +3740,53 @@
                 const res = await fetch(`${apiUrl}/api/sensors/latest`);
                 if (res.ok) {
                     const data = await res.json();
-                    handleSensorData(data);
+                    if (data.timestamp) {
+                        handleSensorData(data);
+                        updateConnectionStatus(true);
+                    } else {
+                        updateConnectionStatus(false);
+                    }
                 }
             } catch(e) {
                 addMessage('刷新失败：无法连接到服务器', 'system');
             }
+        }
+
+        async function fetchSensorEvents() {
+            const apiUrl = document.getElementById('apiUrl').value || 'http://localhost:8000';
+            try {
+                const res = await fetch(`${apiUrl}/api/sensor-events?limit=80`);
+                if (res.ok) {
+                    const events = await res.json();
+                    renderSensorEvents(events);
+                }
+            } catch(e) {}
+        }
+
+        function renderSensorEvents(events) {
+            const list = document.getElementById('sensorEventList');
+            if (!list) return;
+            if (!events || events.length === 0) {
+                list.innerHTML = '<div style="padding:36px;text-align:center;color:#9ca3af;">等待树莓派数据...</div>';
+                return;
+            }
+            const statusText = { normal: '正常', warning: '预警', danger: '异常', missing: '缺失' };
+            list.innerHTML = events.map((event) => `
+                <div class="sensor-event-row">
+                    <strong>${event.sensor_label || event.sensor_type}</strong>
+                    <span>${event.area || '-'} / ${event.device_id || '-'}</span>
+                    <span>${Number(event.value).toFixed(event.sensor_type === 'vibration' ? 2 : 1)}</span>
+                    <span>${formatEventTime(event.timestamp)}</span>
+                    <span class="sensor-event-status ${event.status}">${statusText[event.status] || event.status}</span>
+                </div>
+            `).join('');
+        }
+
+        function formatEventTime(value) {
+            if (!value) return '-';
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return value;
+            return date.toLocaleString('zh-CN', { hour12: false });
         }
 
         async function fetchAlarms() {
@@ -4323,7 +4426,7 @@
             loadSystemSettings();
             
             initRealtimeChart();
-            connectWebSocket();
+            startSensorPolling();
             fetchAlarms();
         });
 

@@ -1,0 +1,4 @@
+adafruit-circuitpython-dht==4.0.9
+gpiozero==2.0.1
+lgpio==0.2.2.0
+requests==2.32.3
