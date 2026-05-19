@@ -769,6 +769,10 @@ class AlarmChecker:
                 last_alert = self.last_alert_time.get(key)
                 if len(points) >= trigger_count and (not last_alert or (now - last_alert).total_seconds() >= cooldown_seconds):
                     level = "danger" if any(point["value"] > threshold * 1.2 for point in points) else "warning"
+                    logger.warning(
+                        "触发报警: type=%s value=%s threshold=%s count=%s window=%ss area=%s",
+                        sensor_type, value, threshold, len(points), window_seconds, area
+                    )
                     alerts.append({
                         "type": sensor_type,
                         "value": value,
@@ -787,21 +791,36 @@ class AlarmChecker:
         return alerts
     
     def save_alert(self, alert: Dict):
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute(
-            "INSERT INTO alerts (timestamp, sensor_type, value, threshold, level) VALUES (?, ?, ?, ?, ?)",
-            (datetime.now().isoformat(), alert["type"], alert["value"], alert["threshold"], alert["level"])
-        )
-        conn.commit()
-        alert_id = c.lastrowid
-        conn.close()
-        
+        global latest_alerts
+        alert_id = int(time.time() * 1000)
+        dedupe_key = f"{alert.get('area')}:{alert.get('type')}"
+        latest_alerts = [item for item in latest_alerts if item.get("dedupe_key") != dedupe_key]
+        alert_record = {
+            "id": alert_id,
+            "title": f"{SENSOR_META.get(alert['type'], {}).get('label', alert['type'])}异常",
+            "time": datetime.now().isoformat(),
+            "source": alert.get("area") or "树莓派",
+            "level": alert.get("level", "warning"),
+            "detail": alert,
+            "dedupe_key": dedupe_key
+        }
+        latest_alerts = [alert_record] + latest_alerts[:49]
         if alert.get("count") and CONFIG.get("feishu_webhook"):
-            send_feishu_text(build_alarm_message(alert))
+            send_feishu_text_fixed(build_alarm_message_fixed(alert))
         else:
             self._notify_feishu(alert, alert_id)
         self._notify_websocket(alert, alert_id)
+        try:
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute(
+                "INSERT INTO alerts (timestamp, sensor_type, value, threshold, level) VALUES (?, ?, ?, ?, ?)",
+                (datetime.now().isoformat(), alert["type"], alert["value"], alert["threshold"], alert["level"])
+            )
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            logger.warning(f"保存报警记录到数据库失败: {e}")
     
     def _notify_feishu(self, alert: Dict, alert_id: int):
         if not CONFIG["feishu_webhook"]:
@@ -952,6 +971,42 @@ def build_alarm_message(alert: Dict) -> str:
     except Exception as e:
         logger.warning(f"飞书机器人发送失败：{e}")
         return False
+
+def send_feishu_text_fixed(text: str) -> bool:
+    webhook = CONFIG.get("feishu_webhook", "").strip()
+    if not webhook:
+        logger.warning("飞书机器人 webhook 未配置，消息未发送")
+        return False
+    try:
+        import requests
+        response = requests.post(
+            webhook,
+            json={"msg_type": "text", "content": {"text": text}},
+            timeout=8
+        )
+        if response.status_code != 200:
+            logger.warning("飞书机器人发送失败: status=%s body=%s", response.status_code, response.text[:300])
+            return False
+        logger.info("飞书机器人消息已发送")
+        return True
+    except Exception as e:
+        logger.warning("飞书机器人发送异常: %s", e, exc_info=True)
+        return False
+
+def build_alarm_message_fixed(alert: Dict) -> str:
+    names = {"temperature": "温度", "humidity": "湿度", "vibration": "振动"}
+    level = "严重" if alert.get("level") == "danger" else "预警"
+    area = alert.get("area") or "未知区域"
+    return f"""{level} 工业环境监控报警
+
+时间段: {format_timestamp(alert.get("start_time"))} 至 {format_timestamp(alert.get("end_time"))}
+异常类型: {names.get(alert.get("type"), alert.get("type"))}
+异常数量: {alert.get("count", 1)} 条
+最新数值: {alert.get("value")}
+阈值: {alert.get("threshold")}
+设备: {alert.get("device_id") or "未知设备"}
+判断: {area}有问题
+请及时处理。"""
 
 def extract_feishu_text_message(payload: dict) -> Optional[str]:
     event = payload.get("event", {})
@@ -1203,7 +1258,7 @@ def handle_feishu_long_message(chat_id: str, text: str):
         reply = asyncio.run(chat_with_ollama(text, build_sensor_context()))
         ok = send_feishu_app_message(chat_id, reply)
         if not ok:
-            send_feishu_text(f"飞书群消息回复：\n{reply}")
+            send_feishu_text_fixed(f"飞书群消息回复：\n{reply}")
         logger.info(f"长连接飞书群消息回复结果：{ok}")
     except Exception as e:
         logger.error(f"处理飞书长连接消息失败：{e}", exc_info=True)
@@ -1363,6 +1418,7 @@ latest_pi_sensor_data = {
     "area": ""
 }
 latest_sensor_events: List[Dict[str, Any]] = []
+latest_alerts: List[Dict[str, Any]] = []
 
 SENSOR_META = {
     "temperature": {"label": "温度", "unit": "°C"},
@@ -1480,6 +1536,15 @@ def remember_live_sensor_data(payload: RaspberrySensorPayload) -> Dict[str, Any]
     )
     live = sensor_payload_response(data, timestamp, device_id, area)
     live["source"] = "raspberry-live"
+    live["statuses"] = {
+        "temperature": sensor_status("temperature", data.temperature),
+        "humidity": sensor_status("humidity", data.humidity),
+        "vibration": sensor_status("vibration", data.vibration),
+    }
+    alerts = alarm_checker.check(data, timestamp=timestamp, device_id=device_id, area=area)
+    for alert in alerts:
+        threading.Thread(target=alarm_checker.save_alert, args=(alert,), daemon=True).start()
+    live["alerts"] = len(alerts)
     latest_pi_sensor_data = live
     latest_sensor_events = (build_sensor_events(data, timestamp, device_id, area) + latest_sensor_events)[:100]
     return live
@@ -1637,7 +1702,6 @@ async def receive_raspberry_sensors(payload: RaspberrySensorPayload):
         raise HTTPException(status_code=400, detail="至少需要上传一个传感器数据")
     live = remember_live_sensor_data(payload)
     asyncio.create_task(manager.broadcast({"type": "sensor", "data": live}))
-    threading.Thread(target=persist_sensor_payload_background, args=(payload,), daemon=True).start()
     return {"success": True, "mode": "live-first", "data": live}
 
 @app.get("/api/sensors/current")
@@ -1749,6 +1813,8 @@ async def get_anomaly_data(limit: int = 500):
 
 @app.get("/api/alerts")
 async def get_alerts():
+    if latest_alerts:
+        return latest_alerts
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("SELECT id, timestamp, sensor_type, value, threshold, level FROM alerts ORDER BY timestamp DESC LIMIT 50")
@@ -1769,6 +1835,12 @@ async def get_alerts():
         })
     
     return alerts
+
+@app.post("/api/alerts/{alert_id}/handle")
+async def handle_alert(alert_id: int):
+    global latest_alerts
+    latest_alerts = [alert for alert in latest_alerts if int(alert.get("id", 0)) != alert_id]
+    return {"success": True, "remaining": len(latest_alerts)}
 
 @app.post("/api/ollama/test")
 async def test_ollama_connection(request: OllamaTestRequest):
@@ -1985,7 +2057,7 @@ async def test_feishu_webhook(payload: dict = None):
     if webhook:
         CONFIG["feishu_webhook"] = webhook
         save_config()
-    ok = send_feishu_text("工业环境监控系统：飞书机器人测试消息发送成功。")
+    ok = send_feishu_text_fixed("工业环境监控系统：飞书机器人测试消息发送成功。")
     return {"success": ok, "message": "测试消息已发送" if ok else "测试消息发送失败，请检查 Webhook 地址"}
 
 @app.post("/api/feishu/events")
@@ -2038,7 +2110,7 @@ async def feishu_events(request: Request):
     context = ", ".join(context_parts) or "暂无数据"
     
     reply = await chat_with_ollama(text, context)
-    ok = send_feishu_text(f"飞书群消息回复：\n{reply}")
+    ok = send_feishu_text_fixed(f"飞书群消息回复：\n{reply}")
     logger.info(f"飞书群消息回复发送结果：{ok}")
     return {"success": True}
 
@@ -2115,7 +2187,7 @@ async def chat_with_ollama_stream(websocket: WebSocket, message: str, context: s
             reply = greeting_reply()
             await send_text_stream(websocket, reply)
             if CONFIG.get("feishu_forward_ai_replies", False):
-                send_feishu_text(f"网页 AI 回复：\n{reply}")
+                send_feishu_text_fixed(f"网页 AI 回复：\n{reply}")
             await websocket.send_json({"type": "done", "full_reply": reply})
             logger.info("问候类消息已使用系统标准回复")
             logger.info("=" * 60)
@@ -2240,7 +2312,7 @@ async def chat_with_ollama_stream(websocket: WebSocket, message: str, context: s
             
             logger.info(f"完整回复：{visible_reply[:100]}...")
             if CONFIG.get("feishu_forward_ai_replies", False) and visible_reply.strip():
-                send_feishu_text(f"网页 AI 回复：\n{visible_reply.strip()}")
+                send_feishu_text_fixed(f"网页 AI 回复：\n{visible_reply.strip()}")
             
             try:
                 await websocket.send_json({"type": "done", "full_reply": visible_reply})

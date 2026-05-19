@@ -2161,7 +2161,7 @@
                             </div>
                         </div>
 
-                        <div class="sensor-card pressure">
+                        <div class="sensor-card pressure" style="display:none;">
                             <div class="sensor-header">
                                 <span class="sensor-label">气压</span>
                                 <div class="sensor-icon"></div>
@@ -2722,6 +2722,8 @@
                         if (data.type === 'sensor' && data.data) {
                             handleSensorData(data.data);
                             fetchSensorEvents();
+                        } else if (data.type === 'alert') {
+                            fetchAlarms();
                         } else {
                             handleSensorData(data);
                         }
@@ -2754,15 +2756,15 @@
                 document.getElementById('tempValue').textContent = Number(data.temperature).toFixed(1);
                 document.getElementById('tempValue').style.color = '#1f2937';
                 document.getElementById('tempValue').style.fontSize = '32px';
-                checkThreshold('temp', parseFloat(data.temperature));
+                checkThreshold('temp', parseFloat(data.temperature), data.statuses?.temperature);
             }
             if (data.humidity !== undefined) {
                 document.getElementById('humidityValue').textContent = Number(data.humidity).toFixed(1);
                 document.getElementById('humidityValue').style.color = '#1f2937';
                 document.getElementById('humidityValue').style.fontSize = '32px';
-                checkThreshold('humid', parseFloat(data.humidity));
+                checkThreshold('humid', parseFloat(data.humidity), data.statuses?.humidity);
             }
-            if (data.pressure !== undefined) {
+            if (false && data.pressure !== undefined) {
                 document.getElementById('pressureValue').textContent = Number(data.pressure).toFixed(1);
                 document.getElementById('pressureValue').style.color = '#1f2937';
                 document.getElementById('pressureValue').style.fontSize = '32px';
@@ -2771,7 +2773,7 @@
                 document.getElementById('vibrationValue').textContent = Number(data.vibration).toFixed(2);
                 document.getElementById('vibrationValue').style.color = '#1f2937';
                 document.getElementById('vibrationValue').style.fontSize = '32px';
-                checkThreshold('vib', parseFloat(data.vibration));
+                checkThreshold('vib', parseFloat(data.vibration), data.statuses?.vibration);
             }
 
             pushRealtimeData(data);
@@ -2783,7 +2785,7 @@
             realtimeDataBuffer.time.push(now);
             if (data.temperature !== undefined) realtimeDataBuffer.temp.push(Number(data.temperature).toFixed(1));
             if (data.humidity !== undefined) realtimeDataBuffer.humid.push(Number(data.humidity).toFixed(1));
-            if (data.vibration !== undefined) realtimeDataBuffer.vibration.push(Number(data.vibration).toFixed(2));
+            if (data.vibration !== undefined) realtimeDataBuffer.vibration.push(Number(data.vibration));
 
             if (realtimeDataBuffer.time.length > MAX_DATA_POINTS) {
                 realtimeDataBuffer.time.shift();
@@ -2804,7 +2806,7 @@
             });
         }
 
-        function checkThreshold(type, value) {
+        function checkThreshold(type, value, serverStatus = null) {
             const tempMax = Number(currentThresholds.temperature ?? 40);
             const humidMax = Number(currentThresholds.humidity ?? 80);
             const vibMax = Number(currentThresholds.vibration ?? 0.5);
@@ -2819,11 +2821,13 @@
 
             const threshold = type === 'temp' ? tempMax : (type === 'humid' ? humidMax : vibMax);
 
-            if (value > threshold * 1.2) {
+            const status = serverStatus || (value > threshold * 1.2 ? 'danger' : (value > threshold ? 'warning' : 'normal'));
+
+            if (status === 'danger') {
                 statusEl.textContent = '超过阈值！';
                 cardEl.className = 'sensor-status danger';
                 cardEl.innerHTML = '<span class="status-dot"></span>超过阈值！';
-            } else if (value > threshold) {
+            } else if (status === 'warning') {
                 statusEl.textContent = '略高于标准值';
                 cardEl.className = 'sensor-status warning';
                 cardEl.innerHTML = '<span class="status-dot"></span>略高于标准值';
@@ -3798,8 +3802,20 @@
                 if (res.ok) {
                     const events = await res.json();
                     renderSensorEvents(events);
+                    syncCardsFromEvents(events);
                 }
             } catch(e) {}
+        }
+
+        function syncCardsFromEvents(events) {
+            if (!events || !events.length) return;
+            const latest = {};
+            events.forEach((event) => {
+                if (!latest[event.sensor_type]) latest[event.sensor_type] = event;
+            });
+            if (latest.temperature) checkThreshold('temp', Number(latest.temperature.value), latest.temperature.status);
+            if (latest.humidity) checkThreshold('humid', Number(latest.humidity.value), latest.humidity.status);
+            if (latest.vibration) checkThreshold('vib', Number(latest.vibration.value), latest.vibration.status);
         }
 
         function renderSensorEvents(events) {
@@ -3818,6 +3834,7 @@
                     <span>${formatEventTime(event.timestamp)}</span>
                     <span class="sensor-event-status ${event.status}">${statusText[event.status] || event.status}</span>
                 </div>
+                    ${a.id ? `<button class="alarm-handle-btn" onclick="markAlertHandled(${a.id})">处理</button></div>` : ''}
             `).join('');
         }
 
@@ -3858,6 +3875,39 @@
                         <div class="alarm-time">${a.time} · ${a.source}</div>
                     </div>
                     <button class="alarm-handle-btn" onclick="this.textContent='已处理'; this.disabled=true; this.style.background='#9ca3af'">处理</button>
+            `).join('');
+            if (badge) { badge.style.display = ''; badge.textContent = alarms.length; }
+            if (navBadge) { navBadge.style.display = ''; navBadge.textContent = alarms.length; }
+        }
+
+        async function markAlertHandled(id) {
+            const apiUrl = document.getElementById('apiUrl').value || 'http://localhost:8000';
+            try {
+                await fetch(`${apiUrl}/api/alerts/${id}/handle`, { method: 'POST' });
+            } catch(e) {}
+            fetchAlarms();
+        }
+
+        renderAlarms = function(alarms) {
+            const list = document.getElementById('alertsList');
+            const badge = document.getElementById('alertCount');
+            const navBadge = document.getElementById('navAlertBadge');
+            if (!list) return;
+            if (!alarms || alarms.length === 0) {
+                list.innerHTML = '<div style="padding:40px;text-align:center;color:#9ca3af;">暂无报警记录</div>';
+                if (badge) badge.style.display = 'none';
+                if (navBadge) navBadge.style.display = 'none';
+                return;
+            }
+            list.innerHTML = alarms.map(a => `
+                <div class="alarm-item ${a.level === 'warning' ? 'warning' : ''}">
+                    <div class="alarm-icon-box">${a.level === 'warning' ? '!' : 'ALM'}</div>
+                    <div class="alarm-info">
+                        <div class="alarm-title-text">${a.title}</div>
+                        <div class="alarm-time">${formatEventTime(a.time)} · ${a.source || '树莓派'}</div>
+                    </div>
+                    <button class="alarm-handle-btn" onclick="markAlertHandled(${a.id})">处理</button>
+                </div>
             `).join('');
             if (badge) { badge.style.display = ''; badge.textContent = alarms.length; }
             if (navBadge) { navBadge.style.display = ''; navBadge.textContent = alarms.length; }
