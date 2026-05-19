@@ -749,7 +749,7 @@ class AlarmChecker:
         now = datetime.now()
         event_time = timestamp or now.isoformat()
         window_seconds = int(CONFIG.get("alarm_window_seconds", 60))
-        trigger_count = max(1, int(CONFIG.get("alarm_trigger_count", 3)))
+        trigger_count = 1
         
         for sensor_type, value in [
             ("temperature", data.temperature),

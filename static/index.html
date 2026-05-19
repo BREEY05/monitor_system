@@ -466,7 +466,7 @@
 
         .sensor-event-row {
             display: grid;
-            grid-template-columns: 86px 1fr 92px 150px 78px;
+            grid-template-columns: 72px minmax(120px, 1fr) 76px 138px 72px;
             gap: 10px;
             align-items: center;
             padding: 10px 12px;
@@ -478,6 +478,10 @@
 
         .sensor-event-status {
             justify-self: end;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 52px;
             padding: 4px 8px;
             border-radius: 999px;
             font-weight: 700;
@@ -2842,17 +2846,14 @@
             const status = value > threshold * 1.2 ? 'danger' : (value > threshold ? 'warning' : 'normal');
 
             if (status === 'danger') {
-                statusEl.textContent = '超过阈值！';
+                statusEl.textContent = '超过阈值';
                 cardEl.className = 'sensor-status danger';
-                cardEl.innerHTML = '<span class="status-dot"></span>超过阈值！';
             } else if (status === 'warning') {
-                statusEl.textContent = '略高于标准值';
+                statusEl.textContent = '超过阈值';
                 cardEl.className = 'sensor-status warning';
-                cardEl.innerHTML = '<span class="status-dot"></span>略高于标准值';
             } else {
                 statusEl.textContent = '正常范围';
                 cardEl.className = 'sensor-status';
-                cardEl.innerHTML = '<span class="status-dot"></span>正常范围';
             }
         }
 
@@ -3830,9 +3831,9 @@
             events.forEach((event) => {
                 if (!latest[event.sensor_type]) latest[event.sensor_type] = event;
             });
-            if (latest.temperature) checkThreshold('temp', Number(latest.temperature.value), latest.temperature.status);
-            if (latest.humidity) checkThreshold('humid', Number(latest.humidity.value), latest.humidity.status);
-            if (latest.vibration) checkThreshold('vib', Number(latest.vibration.value), latest.vibration.status);
+            if (latest.temperature) checkThreshold('temp', Number(latest.temperature.value));
+            if (latest.humidity) checkThreshold('humid', Number(latest.humidity.value));
+            if (latest.vibration) checkThreshold('vib', Number(latest.vibration.value));
         }
 
         function renderSensorEvents(events) {
@@ -3842,7 +3843,7 @@
                 list.innerHTML = '<div style="padding:36px;text-align:center;color:#9ca3af;">等待树莓派数据...</div>';
                 return;
             }
-            const statusText = { normal: '正常', warning: '预警', danger: '异常', missing: '缺失' };
+            const statusText = { normal: '正常', warning: '异常', danger: '异常', missing: '缺失' };
             list.innerHTML = events.map((event) => `
                 <div class="sensor-event-row">
                     <strong>${event.sensor_label || event.sensor_type}</strong>
