@@ -1,98 +1,94 @@
-import json
 import time
 from datetime import datetime
-from pathlib import Path
 
-import board
-import adafruit_dht
 import requests
-from gpiozero import DigitalInputDevice
 
 
-BASE_DIR = Path(__file__).resolve().parent
-CONFIG_PATH = BASE_DIR / "config.json"
-DEFAULT_CONFIG = {
-    "server_url": "http://127.0.0.1:8000",
-    "device_id": "raspberry-pi-5",
-    "area": "A区",
-    "interval_seconds": 5,
-    "dht11_gpio": 4,
-    "sw420_gpio": 17,
-    "sw420_sample_seconds": 1.0,
-}
-
-GPIO_TO_BOARD = {
-    2: board.D2,
-    3: board.D3,
-    4: board.D4,
-    5: board.D5,
-    6: board.D6,
-    9: board.D9,
-    10: board.D10,
-    11: board.D11,
-    13: board.D13,
-    17: board.D17,
-    19: board.D19,
-    22: board.D22,
-    26: board.D26,
-    27: board.D27,
-}
+# ===== 修改这里即可 =====
+SERVER_URL = "http://YOUR_HOST_IP:8000"
+DEVICE_ID = "raspberry-pi-5"
+AREA = "A区"
+DHT11_GPIO = 4
+SW420_GPIO = 17
+INTERVAL_SECONDS = 1
+# =======================
 
 
-def load_config():
-    if CONFIG_PATH.exists():
-        with CONFIG_PATH.open("r", encoding="utf-8") as f:
-            user_config = json.load(f)
-        return {**DEFAULT_CONFIG, **user_config}
-    return DEFAULT_CONFIG.copy()
+try:
+    import board
+    import adafruit_dht
+    from gpiozero import InputDevice
+    SENSOR_AVAILABLE = True
+except Exception as exc:
+    SENSOR_AVAILABLE = False
+    print(f"[SENSOR] 传感器库不可用: {exc}")
 
 
-def read_vibration(sensor, sample_seconds):
-    end_time = time.time() + float(sample_seconds)
-    pulses = 0
-    last_value = sensor.value
-    while time.time() < end_time:
-        current = sensor.value
-        if current and not last_value:
-            pulses += 1
-        last_value = current
-        time.sleep(0.005)
-    return pulses
+def dht_pin_from_gpio(gpio):
+    name = f"D{gpio}"
+    if not hasattr(board, name):
+        raise RuntimeError(f"board.{name} 不存在，请检查 DHT11_GPIO")
+    return getattr(board, name)
+
+
+def init_sensors():
+    if not SENSOR_AVAILABLE:
+        return None, None
+    dht = adafruit_dht.DHT11(dht_pin_from_gpio(DHT11_GPIO))
+    vibration = InputDevice(SW420_GPIO)
+    print(f"[SENSOR] DHT11 GPIO{DHT11_GPIO}, SW-420 GPIO{SW420_GPIO} 已初始化")
+    return dht, vibration
+
+
+def read_sensors(dht, vibration):
+    data = {
+        "device_id": DEVICE_ID,
+        "area": AREA,
+        "timestamp": datetime.now().isoformat(timespec="seconds"),
+        "temperature": None,
+        "humidity": None,
+        "vibration": 0,
+    }
+
+    if dht:
+        try:
+            data["temperature"] = dht.temperature
+            data["humidity"] = dht.humidity
+        except RuntimeError as exc:
+            print(f"[DHT11] 本次读取失败，跳过温湿度: {exc}")
+
+    if vibration:
+        data["vibration"] = 1 if vibration.value else 0
+
+    return data
+
+
+def print_data(data, uploaded, error=None):
+    temp = "--" if data["temperature"] is None else f"{data['temperature']:.1f}C"
+    hum = "--" if data["humidity"] is None else f"{data['humidity']:.1f}%"
+    vib = "震动" if data["vibration"] else "静止"
+    status = "已上传" if uploaded else f"上传失败: {error}"
+    print(f"[{data['timestamp']}] 温度={temp} 湿度={hum} SW-420={vib} -> {status}")
+
+
+def upload(data):
+    endpoint = SERVER_URL.rstrip("/") + "/api/raspberry/sensors"
+    payload = {key: value for key, value in data.items() if value is not None}
+    response = requests.post(endpoint, json=payload, timeout=5)
+    response.raise_for_status()
 
 
 def main():
-    config = load_config()
-    dht_pin = GPIO_TO_BOARD.get(int(config["dht11_gpio"]))
-    if not dht_pin:
-        raise RuntimeError(f"Unsupported DHT11 GPIO: {config['dht11_gpio']}")
-
-    dht = adafruit_dht.DHT11(dht_pin)
-    vibration = DigitalInputDevice(int(config["sw420_gpio"]), pull_up=False)
-    endpoint = config["server_url"].rstrip("/") + "/api/raspberry/sensors"
-
-    print(f"Posting sensor data to {endpoint}")
+    dht, vibration = init_sensors()
+    print(f"[UPLOAD] {SERVER_URL.rstrip()}/api/raspberry/sensors")
     while True:
-        payload = {
-            "device_id": config["device_id"],
-            "area": config["area"],
-            "timestamp": datetime.now().isoformat(),
-        }
+        data = read_sensors(dht, vibration)
         try:
-            payload["temperature"] = float(dht.temperature)
-            payload["humidity"] = float(dht.humidity)
-        except RuntimeError as exc:
-            print(f"DHT11 read skipped: {exc}")
-
-        payload["vibration"] = read_vibration(vibration, config["sw420_sample_seconds"])
-
-        try:
-            response = requests.post(endpoint, json=payload, timeout=8)
-            response.raise_for_status()
-            print(f"{payload['timestamp']} uploaded: {payload}")
-        except requests.RequestException as exc:
-            print(f"Upload failed: {exc}")
-
-        time.sleep(float(config["interval_seconds"]))
+            upload(data)
+            print_data(data, True)
+        except Exception as exc:
+            print_data(data, False, exc)
+        time.sleep(INTERVAL_SECONDS)
 
 
 if __name__ == "__main__":

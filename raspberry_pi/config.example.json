@@ -1,9 +1,0 @@
-{
-  "server_url": "http://YOUR_HOST_IP:8000",
-  "device_id": "raspberry-pi-5",
-  "area": "A区",
-  "interval_seconds": 5,
-  "dht11_gpio": 4,
-  "sw420_gpio": 17,
-  "sw420_sample_seconds": 1.0
-}

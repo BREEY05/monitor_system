@@ -2928,7 +2928,7 @@
         function startSensorPolling() {
             if (sensorPollTimer) clearInterval(sensorPollTimer);
             refreshDatabaseSensors();
-            sensorPollTimer = setInterval(refreshDatabaseSensors, 5000);
+            sensorPollTimer = setInterval(refreshDatabaseSensors, 1000);
         }
 
         function initHistoryChart() {

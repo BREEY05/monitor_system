@@ -1,48 +1,59 @@
-# Raspberry Pi 5 Sensor Client
+# 树莓派传感器上传脚本
 
-This folder contains the script that runs on Raspberry Pi 5 and uploads DHT11 and SW-420 readings to the host service every 5 seconds.
+树莓派端只需要运行一个文件：
 
-## Wiring
+```bash
+python3 raspberry_sensor_client.py
+```
 
-- DHT11 data pin: default BCM GPIO 4
-- SW-420 digital output pin: default BCM GPIO 17
-- Use 3.3V and GND from the Raspberry Pi.
+它会每 1 秒读取一次：
 
-## Install
+- DHT11：温度、湿度
+- SW-420：是否震动
+
+同时在终端打印，并上传到主机：
+
+```text
+POST /api/raspberry/sensors
+```
+
+## 安装依赖
 
 ```bash
 cd raspberry_pi
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-cp config.example.json config.json
 ```
 
-Edit `config.json` and set `server_url` to the host machine address, for example:
+## 修改主机地址
 
-```json
-{
-  "server_url": "http://192.168.1.20:8000",
-  "device_id": "raspberry-pi-5",
-  "area": "A区",
-  "interval_seconds": 5,
-  "dht11_gpio": 4,
-  "sw420_gpio": 17,
-  "sw420_sample_seconds": 1.0
-}
+打开 `raspberry_sensor_client.py`，只改顶部这几行：
+
+```python
+SERVER_URL = "http://YOUR_HOST_IP:8000"
+DEVICE_ID = "raspberry-pi-5"
+AREA = "A区"
+DHT11_GPIO = 4
+SW420_GPIO = 17
+INTERVAL_SECONDS = 1
 ```
 
-## Run
+例如主机 IP 是 `192.168.1.20`：
 
-```bash
-source .venv/bin/activate
-python raspberry_sensor_client.py
+```python
+SERVER_URL = "http://192.168.1.20:8000"
 ```
 
-The host receives data at:
+## 接线默认值
+
+- DHT11 data：BCM GPIO 4
+- SW-420 DO：BCM GPIO 17
+- 电源：3.3V
+- GND：GND
+
+## 终端输出示例
 
 ```text
-POST /api/raspberry/sensors
+[2026-05-19T10:30:01] 温度=25.0C 湿度=56.0% SW-420=静止 -> 已上传
 ```
-
-Each upload is written to the cloud database when PostgreSQL/Supabase is configured on the host.
