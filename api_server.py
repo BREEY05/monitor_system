@@ -2338,6 +2338,16 @@ async def websocket_endpoint(websocket: WebSocket):
 async def update_settings(settings: dict):
     global CONFIG
     CONFIG.update(settings)
+    if isinstance(CONFIG.get("thresholds"), dict):
+        CONFIG["thresholds"]["temperature"] = float(CONFIG["thresholds"].get("temperature", 40))
+        CONFIG["thresholds"]["humidity"] = float(CONFIG["thresholds"].get("humidity", 80))
+        CONFIG["thresholds"]["vibration"] = float(CONFIG["thresholds"].get("vibration", 0.5))
+    CONFIG["alarm_trigger_count"] = int(CONFIG.get("alarm_trigger_count", 3))
+    CONFIG["alarm_window_seconds"] = int(CONFIG.get("alarm_window_seconds", 60))
+    CONFIG["alarm_cooldown_seconds"] = min(int(CONFIG.get("alarm_cooldown_seconds", 300)), CONFIG["alarm_window_seconds"])
+    if any(key in settings for key in ("thresholds", "alarm_trigger_count", "alarm_window_seconds")):
+        alarm_checker.anomaly_windows.clear()
+        alarm_checker.last_alert_time.clear()
     normalize_device_config()
     if settings.get("postgres_dsn") is not None or settings.get("database_backend") is not None:
         init_db()

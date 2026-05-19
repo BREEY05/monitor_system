@@ -2684,6 +2684,8 @@
         let ws = null;
         let wsConnected = false;
         let sensorPollTimer = null;
+        let currentThresholds = { temperature: 40, humidity: 80, vibration: 0.5 };
+        let currentAlarmSettings = { alarm_trigger_count: 3, alarm_window_seconds: 60 };
         let devices = [];
         let selectedDeviceId = 'device-1';
         let deviceInfo = {
@@ -2803,9 +2805,9 @@
         }
 
         function checkThreshold(type, value) {
-            const tempMax = parseFloat(document.getElementById('tempThreshold').value) || 40;
-            const humidMax = parseFloat(document.getElementById('humidThreshold').value) || 80;
-            const vibMax = parseFloat(document.getElementById('vibThreshold').value) || 0.5;
+            const tempMax = Number(currentThresholds.temperature ?? 40);
+            const humidMax = Number(currentThresholds.humidity ?? 80);
+            const vibMax = Number(currentThresholds.vibration ?? 0.5);
 
             let statusEl, cardEl;
             if (type === 'temp') { statusEl = document.getElementById('tempStatus'); cardEl = document.querySelector('.sensor-card.temperature .sensor-status'); }
@@ -2915,10 +2917,29 @@
             if (!realtimeChart || realtimeDataBuffer.time.length === 0) return;
             realtimeChart.setOption({
                 xAxis: { data: realtimeDataBuffer.time.slice() },
+                yAxis: [
+                    {
+                        type: 'value',
+                        name: '温湿度',
+                        axisLine: { show: false },
+                        axisLabel: { color: '#9ca3af', fontSize: 11 },
+                        splitLine: { lineStyle: { color: '#f3f4f6' } }
+                    },
+                    {
+                        type: 'value',
+                        name: '振动',
+                        min: 0,
+                        max: 1,
+                        position: 'right',
+                        axisLine: { lineStyle: { color: '#10b981' } },
+                        axisLabel: { color: '#10b981', fontSize: 11 },
+                        splitLine: { show: false }
+                    }
+                ],
                 series: [
-                    { data: realtimeDataBuffer.temp.slice() },
-                    { data: realtimeDataBuffer.humid.slice() },
-                    { data: realtimeDataBuffer.vibration.slice() }
+                    { yAxisIndex: 0, data: realtimeDataBuffer.temp.slice() },
+                    { yAxisIndex: 0, data: realtimeDataBuffer.humid.slice() },
+                    { yAxisIndex: 1, step: 'middle', smooth: false, symbolSize: 7, lineStyle: { color: '#10b981', width: 3 }, data: realtimeDataBuffer.vibration.slice() }
                 ],
                 graphic: []
             });
@@ -2934,6 +2955,19 @@
             if (sensorPollTimer) clearInterval(sensorPollTimer);
             refreshDatabaseSensors();
             sensorPollTimer = setInterval(refreshDatabaseSensors, 1000);
+        }
+
+        function ensureAlarmWindowInput() {
+            if (document.getElementById('alarmWindowSeconds')) return;
+            const slider = document.getElementById('anomalyCountSlider');
+            if (!slider) return;
+            const field = document.createElement('div');
+            field.className = 'setting-field';
+            field.innerHTML = `
+                <label class="setting-label">检测区间（秒）</label>
+                <input type="number" class="setting-input" value="60" min="1" id="alarmWindowSeconds">
+            `;
+            slider.closest('.setting-field').insertAdjacentElement('afterend', field);
         }
 
         function initHistoryChart() {
@@ -4307,6 +4341,9 @@
                     supabase_url: document.getElementById('supabaseUrl').value,
                     supabase_key: document.getElementById('supabaseKey').value,
                     supabase_storage_bucket: document.getElementById('supabaseStorageBucket').value || 'device-models',
+                    thresholds: currentThresholds,
+                    alarm_trigger_count: currentAlarmSettings.alarm_trigger_count,
+                    alarm_window_seconds: currentAlarmSettings.alarm_window_seconds,
                     devices,
                     selected_device_id: selectedDeviceId,
                     device_info: getDevicePayload()
@@ -4336,6 +4373,7 @@
         async function loadSystemSettings() {
             const apiUrl = document.getElementById('apiUrl').value || 'http://localhost:8000';
             try {
+                ensureAlarmWindowInput();
                 const res = await fetch(`${apiUrl}/api/settings`);
                 if (!res.ok) return;
                 const settings = await res.json();
@@ -4347,6 +4385,7 @@
                 if (settings.supabase_url) document.getElementById('supabaseUrl').value = settings.supabase_url;
                 if (settings.supabase_key) document.getElementById('supabaseKey').value = settings.supabase_key;
                 document.getElementById('supabaseStorageBucket').value = settings.supabase_storage_bucket || 'device-models';
+                applyThresholdSettings(settings);
                 normalizeDevices(settings);
                 document.getElementById('feishuForwardReplies').checked = settings.feishu_forward_ai_replies !== false;
                 document.getElementById('feishuReceiveMessages').checked = settings.feishu_receive_group_messages !== false;
@@ -4373,12 +4412,56 @@
             }
         }
 
+        function applyThresholdSettings(settings = {}) {
+            const thresholds = settings.thresholds || {};
+            currentThresholds = {
+                temperature: Number(thresholds.temperature ?? currentThresholds.temperature ?? 40),
+                humidity: Number(thresholds.humidity ?? currentThresholds.humidity ?? 80),
+                vibration: Number(thresholds.vibration ?? currentThresholds.vibration ?? 0.5)
+            };
+            currentAlarmSettings = {
+                alarm_trigger_count: Number(settings.alarm_trigger_count ?? currentAlarmSettings.alarm_trigger_count ?? 3),
+                alarm_window_seconds: Number(settings.alarm_window_seconds ?? currentAlarmSettings.alarm_window_seconds ?? 60)
+            };
+            if (document.getElementById('tempThreshold')) document.getElementById('tempThreshold').value = currentThresholds.temperature;
+            if (document.getElementById('humidThreshold')) document.getElementById('humidThreshold').value = currentThresholds.humidity;
+            if (document.getElementById('vibThreshold')) document.getElementById('vibThreshold').value = currentThresholds.vibration;
+            if (document.getElementById('anomalyCountSlider')) document.getElementById('anomalyCountSlider').value = currentAlarmSettings.alarm_trigger_count;
+            if (document.getElementById('anomalyCountValue')) document.getElementById('anomalyCountValue').textContent = currentAlarmSettings.alarm_trigger_count;
+            if (document.getElementById('alarmWindowSeconds')) document.getElementById('alarmWindowSeconds').value = currentAlarmSettings.alarm_window_seconds;
+        }
+
+        async function syncMonitorSettings(showMessage = true) {
+            ensureAlarmWindowInput();
+            currentThresholds = {
+                temperature: Number(document.getElementById('tempThreshold').value || 40),
+                humidity: Number(document.getElementById('humidThreshold').value || 80),
+                vibration: Number(document.getElementById('vibThreshold').value || 0.5)
+            };
+            currentAlarmSettings = {
+                alarm_trigger_count: Number(document.getElementById('anomalyCountSlider').value || 3),
+                alarm_window_seconds: Number(document.getElementById('alarmWindowSeconds')?.value || 60)
+            };
+            const apiUrl = document.getElementById('apiUrl').value || 'http://localhost:8000';
+            const res = await fetch(`${apiUrl}/api/settings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    thresholds: currentThresholds,
+                    alarm_trigger_count: currentAlarmSettings.alarm_trigger_count,
+                    alarm_window_seconds: currentAlarmSettings.alarm_window_seconds
+                })
+            });
+            if (!res.ok) throw new Error('保存监控设置失败');
+            if (showMessage) alert('监控设置已保存并立即生效');
+        }
+
         function saveThresholds() {
-            alert('阈值设置已保存！');
+            syncMonitorSettings(true).catch(e => alert(e.message));
         }
 
         function saveAlertSettings() {
-            alert('报警设置已保存！');
+            syncMonitorSettings(true).catch(e => alert(e.message));
         }
 
         function saveMapSettings() {
