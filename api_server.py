@@ -1352,6 +1352,17 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, 
 sensor_reader = SensorReader()
 camera = CameraCapture()
 alarm_checker = AlarmChecker()
+latest_pi_sensor_data = {
+    "source": "raspberry-live",
+    "timestamp": None,
+    "temperature": None,
+    "humidity": None,
+    "pressure": None,
+    "vibration": None,
+    "device_id": "",
+    "area": ""
+}
+latest_sensor_events: List[Dict[str, Any]] = []
 
 SENSOR_META = {
     "temperature": {"label": "温度", "unit": "°C"},
@@ -1428,6 +1439,56 @@ def sensor_payload_response(data: SensorData, timestamp: str, device_id: str = "
         "area": area,
         "source": "database"
     }
+
+def build_sensor_events(data: SensorData, timestamp: str, device_id: str, area: str) -> List[Dict[str, Any]]:
+    events = []
+    for sensor_type, value in [
+        ("temperature", data.temperature),
+        ("humidity", data.humidity),
+        ("pressure", data.pressure),
+        ("vibration", data.vibration),
+    ]:
+        if value is None:
+            continue
+        threshold = CONFIG.get("thresholds", {}).get(sensor_type)
+        status = sensor_status(sensor_type, value)
+        events.append({
+            "timestamp": timestamp,
+            "device_id": device_id,
+            "area": area,
+            "sensor_type": sensor_type,
+            "sensor_label": SENSOR_META.get(sensor_type, {}).get("label", sensor_type),
+            "value": float(value),
+            "threshold": threshold,
+            "status": status
+        })
+    return events
+
+def remember_live_sensor_data(payload: RaspberrySensorPayload) -> Dict[str, Any]:
+    global latest_pi_sensor_data, latest_sensor_events
+    timestamp = payload.timestamp or datetime.now().isoformat()
+    device_id = payload.device_id or "raspberry-pi-5"
+    area = payload.area or "A区"
+    data = SensorData(
+        temperature=payload.temperature,
+        humidity=payload.humidity,
+        pressure=payload.pressure,
+        vibration=payload.vibration,
+        device_id=device_id,
+        area=area,
+        timestamp=timestamp
+    )
+    live = sensor_payload_response(data, timestamp, device_id, area)
+    live["source"] = "raspberry-live"
+    latest_pi_sensor_data = live
+    latest_sensor_events = (build_sensor_events(data, timestamp, device_id, area) + latest_sensor_events)[:100]
+    return live
+
+def persist_sensor_payload_background(payload: RaspberrySensorPayload):
+    try:
+        insert_sensor_payload(payload)
+    except Exception as e:
+        logger.warning(f"后台保存树莓派传感器数据失败: {e}", exc_info=True)
 
 @app.on_event("startup")
 async def on_startup():
@@ -1558,6 +1619,8 @@ async def list_skills():
 
 @app.get("/api/sensors/latest")
 async def get_latest_sensor():
+    if latest_pi_sensor_data.get("timestamp"):
+        return latest_pi_sensor_data
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("SELECT timestamp, temperature, humidity, pressure, vibration FROM sensor_data ORDER BY timestamp DESC LIMIT 1")
@@ -1572,7 +1635,10 @@ async def get_latest_sensor():
 async def receive_raspberry_sensors(payload: RaspberrySensorPayload):
     if all(getattr(payload, field) is None for field in ("temperature", "humidity", "pressure", "vibration")):
         raise HTTPException(status_code=400, detail="至少需要上传一个传感器数据")
-    return {"success": True, **insert_sensor_payload(payload)}
+    live = remember_live_sensor_data(payload)
+    asyncio.create_task(manager.broadcast({"type": "sensor", "data": live}))
+    threading.Thread(target=persist_sensor_payload_background, args=(payload,), daemon=True).start()
+    return {"success": True, "mode": "live-first", "data": live}
 
 @app.get("/api/sensors/current")
 async def get_current_sensors():
@@ -1628,14 +1694,20 @@ async def get_history(range: str = "day"):
 @app.get("/api/sensor-events")
 async def get_sensor_events(limit: int = 100):
     limit = max(1, min(limit, 500))
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute(
-        "SELECT timestamp, device_id, area, sensor_type, value, threshold, status FROM sensor_events ORDER BY timestamp DESC LIMIT ?",
-        (limit,)
-    )
-    rows = c.fetchall()
-    conn.close()
+    if latest_sensor_events:
+        return latest_sensor_events[:limit]
+    try:
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute(
+            "SELECT timestamp, device_id, area, sensor_type, value, threshold, status FROM sensor_events ORDER BY timestamp DESC LIMIT ?",
+            (limit,)
+        )
+        rows = c.fetchall()
+        conn.close()
+    except Exception as e:
+        logger.warning(f"读取传感器历史失败: {e}")
+        return []
     return [
         {
             "timestamp": row[0],

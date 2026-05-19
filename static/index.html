@@ -2717,7 +2717,12 @@
                 ws.onmessage = function(event) {
                     try {
                         const data = JSON.parse(event.data);
-                        handleSensorData(data);
+                        if (data.type === 'sensor' && data.data) {
+                            handleSensorData(data.data);
+                            fetchSensorEvents();
+                        } else {
+                            handleSensorData(data);
+                        }
                     } catch(e) {
                         console.warn('解析传感器数据失败:', e, event.data);
                     }
@@ -4426,6 +4431,7 @@
             loadSystemSettings();
             
             initRealtimeChart();
+            connectWebSocket();
             startSensorPolling();
             fetchAlarms();
         });
