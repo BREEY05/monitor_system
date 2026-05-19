@@ -64,6 +64,18 @@ def upload(data):
     response.raise_for_status()
 
 
+def check_server():
+    endpoint = SERVER_URL.rstrip("/") + "/api/raspberry/ping"
+    try:
+        response = HTTP_SESSION.get(endpoint, timeout=HTTP_TIMEOUT_SECONDS)
+        response.raise_for_status()
+        print(f"[PING] server ok: {endpoint}")
+        return True
+    except Exception as exc:
+        print(f"[PING] server failed: {endpoint} -> {exc}")
+        return False
+
+
 def print_line(data, ok, error=""):
     temp = "--" if data["temperature"] is None else f"{data['temperature']:.1f}C"
     hum = "--" if data["humidity"] is None else f"{data['humidity']:.1f}%"
@@ -75,6 +87,7 @@ def print_line(data, ok, error=""):
 def main():
     dht, vibration = init_sensors()
     print(f"[UPLOAD] {SERVER_URL.rstrip()}/api/raspberry/sensors")
+    check_server()
     while True:
         data = read_sensor_data(dht, vibration)
         try:

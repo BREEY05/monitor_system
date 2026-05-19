@@ -1400,6 +1400,11 @@
             border-left-color: #f59e0b;
         }
 
+        .alarm-item.handled {
+            opacity: 0.62;
+            border-left-color: #9ca3af;
+        }
+
         .alarm-item:hover {
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
         }
@@ -1436,6 +1441,10 @@
             color: #d97706;
         }
 
+        .alarm-item.handled .alarm-title-text {
+            color: #6b7280;
+        }
+
         .alarm-time {
             font-size: 12px;
             color: #9ca3af;
@@ -1457,6 +1466,13 @@
 
         .alarm-item.warning .alarm-handle-btn {
             background: #f59e0b;
+        }
+
+        .alarm-handle-btn:disabled,
+        .alarm-item.handled .alarm-handle-btn {
+            background: #9ca3af;
+            cursor: default;
+            filter: none;
         }
 
         .alarm-handle-btn:hover {
@@ -2823,9 +2839,7 @@
 
             const threshold = type === 'temp' ? tempMax : (type === 'humid' ? humidMax : vibMax);
 
-            const status = ['normal', 'warning', 'danger', 'missing'].includes(serverStatus)
-                ? serverStatus
-                : (value > threshold * 1.2 ? 'danger' : (value > threshold ? 'warning' : 'normal'));
+            const status = value > threshold * 1.2 ? 'danger' : (value > threshold ? 'warning' : 'normal');
 
             if (status === 'danger') {
                 statusEl.textContent = '超过阈值！';
@@ -3869,21 +3883,33 @@
                 if (navBadge) { navBadge.style.display = 'none'; }
                 return;
             }
+            const activeCount = alarms.filter(a => !a.handled).length;
             list.innerHTML = alarms.map(a => `
-                <div class="alarm-item ${a.level === 'warning' ? 'warning' : ''}">
+                <div class="alarm-item ${a.level === 'warning' ? 'warning' : ''} ${a.handled ? 'handled' : ''}">
                     <div class="alarm-icon-box">${a.level === 'warning' ? '!' : 'ALM'}</div>
                     <div class="alarm-info">
                         <div class="alarm-title-text">${a.title}</div>
-                        <div class="alarm-time">${formatEventTime(a.time)} · ${a.source || '树莓派'}</div>
+                        <div class="alarm-time">${formatEventTime(a.time)} · ${a.source || '树莓派'}${a.handled ? ' · 已处理' : ''}</div>
                     </div>
-                    <button class="alarm-handle-btn" onclick="markAlertHandled(${a.id})">处理</button>
+                    <button class="alarm-handle-btn" ${a.handled ? 'disabled' : ''} onclick="markAlertHandled(${a.id}, this)">${a.handled ? '已处理' : '处理'}</button>
                 </div>
             `).join('');
-            if (badge) { badge.style.display = ''; badge.textContent = alarms.length; }
-            if (navBadge) { navBadge.style.display = ''; navBadge.textContent = alarms.length; }
+            if (badge) { badge.style.display = activeCount ? '' : 'none'; badge.textContent = activeCount; }
+            if (navBadge) { navBadge.style.display = activeCount ? '' : 'none'; navBadge.textContent = activeCount; }
         }
 
-        async function markAlertHandled(id) {
+        async function markAlertHandled(id, button) {
+            if (button) {
+                button.textContent = '已处理';
+                button.disabled = true;
+                const item = button.closest('.alarm-item');
+                if (item) item.classList.add('handled');
+                const activeCount = document.querySelectorAll('#alertsList .alarm-item:not(.handled)').length;
+                const badge = document.getElementById('alertCount');
+                const navBadge = document.getElementById('navAlertBadge');
+                if (badge) { badge.style.display = activeCount ? '' : 'none'; badge.textContent = activeCount; }
+                if (navBadge) { navBadge.style.display = activeCount ? '' : 'none'; navBadge.textContent = activeCount; }
+            }
             const apiUrl = document.getElementById('apiUrl').value || 'http://localhost:8000';
             try {
                 const res = await fetch(`${apiUrl}/api/alerts/${id}/handle`, { method: 'POST' });
@@ -3891,7 +3917,6 @@
             } catch(e) {
                 console.warn('处理报警失败', e);
             }
-            await fetchAlarms();
         }
 
         async function uploadRagDocument() {

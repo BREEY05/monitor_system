@@ -742,7 +742,6 @@ class AlarmChecker:
     def __init__(self):
         self.anomaly_windows = {}
         self.last_alert_time = {}
-        self.acknowledged_keys = set()
         self.alert_lock = threading.Lock()
     
     def check(self, data: SensorData, timestamp: str = None, device_id: str = "", area: str = "") -> List[Dict]:
@@ -767,13 +766,10 @@ class AlarmChecker:
             key = f"{device_id}:{area}:{sensor_type}"
             if value <= threshold:
                 self.anomaly_windows.pop(key, None)
-                self.acknowledged_keys.discard(f"{area}:{sensor_type}")
                 continue
 
             if value > threshold:
                 dedupe_key = f"{area}:{sensor_type}"
-                if dedupe_key in self.acknowledged_keys:
-                    continue
                 points = self.anomaly_windows.get(key, [])
                 points.append({"time": now, "timestamp": event_time, "value": value})
                 cutoff = now - timedelta(seconds=window_seconds)
@@ -807,9 +803,7 @@ class AlarmChecker:
         global latest_alerts
         dedupe_key = f"{alert.get('area')}:{alert.get('type')}"
         with self.alert_lock:
-            if dedupe_key in self.acknowledged_keys:
-                return
-            existing = next((item for item in latest_alerts if item.get("dedupe_key") == dedupe_key), None)
+            existing = next((item for item in latest_alerts if item.get("dedupe_key") == dedupe_key and not item.get("handled")), None)
             if existing:
                 existing["time"] = datetime.now().isoformat()
                 existing["level"] = alert.get("level", existing.get("level", "warning"))
@@ -824,10 +818,11 @@ class AlarmChecker:
                 "source": alert.get("area") or "树莓派",
                 "level": alert.get("level", "warning"),
                 "detail": alert,
-                "dedupe_key": dedupe_key
+                "dedupe_key": dedupe_key,
+                "handled": False
             }
             latest_alerts = [alert_record] + latest_alerts[:49]
-        send_feishu_text(build_alarm_message(alert))
+        threading.Thread(target=send_feishu_text, args=(build_alarm_message(alert),), daemon=True).start()
         self._notify_websocket(alert, alert_id)
         try:
             conn = get_db_connection()
@@ -845,10 +840,10 @@ class AlarmChecker:
         global latest_alerts
         with self.alert_lock:
             handled = next((alert for alert in latest_alerts if int(alert.get("id", 0)) == alert_id), None)
-            if handled and handled.get("dedupe_key"):
-                self.acknowledged_keys.add(handled["dedupe_key"])
-            latest_alerts = [alert for alert in latest_alerts if int(alert.get("id", 0)) != alert_id]
-            remaining = len(latest_alerts)
+            if handled:
+                handled["handled"] = True
+                handled["handled_at"] = datetime.now().isoformat()
+            remaining = sum(1 for alert in latest_alerts if not alert.get("handled"))
         try:
             conn = get_db_connection()
             c = conn.cursor()
@@ -1627,6 +1622,10 @@ async def api_info():
         }
     }
 
+@app.get("/api/raspberry/ping")
+async def raspberry_ping():
+    return {"ok": True, "time": datetime.now().isoformat()}
+
 @app.post("/api/database/test")
 async def test_database_connection(request: DatabaseTestRequest):
     old_dsn = CONFIG.get("postgres_dsn", "")
@@ -1721,22 +1720,20 @@ async def list_skills():
 async def get_latest_sensor():
     if latest_pi_sensor_data.get("timestamp"):
         return latest_pi_sensor_data
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("SELECT timestamp, temperature, humidity, pressure, vibration FROM sensor_data ORDER BY timestamp DESC LIMIT 1")
-    row = c.fetchone()
-    conn.close()
-    if not row:
-        return {"source": "database", "timestamp": None, "message": "暂无树莓派传感器数据"}
-    data = SensorData(temperature=row[1], humidity=row[2], pressure=row[3], vibration=row[4])
-    return sensor_payload_response(data, row[0])
+    return {"source": "live-memory", "timestamp": None, "message": "暂无树莓派实时数据"}
 
 @app.post("/api/raspberry/sensors")
 async def receive_raspberry_sensors(payload: RaspberrySensorPayload):
     if all(getattr(payload, field) is None for field in ("temperature", "humidity", "pressure", "vibration")):
         raise HTTPException(status_code=400, detail="至少需要上传一个传感器数据")
     live = remember_live_sensor_data(payload)
-    asyncio.create_task(manager.broadcast({"type": "sensor", "data": live}))
+    try:
+        asyncio.get_running_loop().call_soon(
+            asyncio.create_task,
+            manager.broadcast({"type": "sensor", "data": live})
+        )
+    except RuntimeError:
+        pass
     return {"success": True, "mode": "live-first", "data": live}
 
 @app.get("/api/sensors/current")
@@ -1793,33 +1790,7 @@ async def get_history(range: str = "day"):
 @app.get("/api/sensor-events")
 async def get_sensor_events(limit: int = 100):
     limit = max(1, min(limit, 500))
-    if latest_sensor_events:
-        return latest_sensor_events[:limit]
-    try:
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute(
-            "SELECT timestamp, device_id, area, sensor_type, value, threshold, status FROM sensor_events ORDER BY timestamp DESC LIMIT ?",
-            (limit,)
-        )
-        rows = c.fetchall()
-        conn.close()
-    except Exception as e:
-        logger.warning(f"读取传感器历史失败: {e}")
-        return []
-    return [
-        {
-            "timestamp": row[0],
-            "device_id": row[1],
-            "area": row[2],
-            "sensor_type": row[3],
-            "sensor_label": SENSOR_META.get(row[3], {}).get("label", row[3]),
-            "value": row[4],
-            "threshold": row[5],
-            "status": row[6]
-        }
-        for row in rows
-    ]
+    return latest_sensor_events[:limit]
 
 @app.get("/api/anomaly-data")
 async def get_anomaly_data(limit: int = 500):
@@ -1848,32 +1819,7 @@ async def get_anomaly_data(limit: int = 500):
 
 @app.get("/api/alerts")
 async def get_alerts():
-    if latest_alerts:
-        return latest_alerts
-    try:
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute("SELECT id, timestamp, sensor_type, value, threshold, level FROM alerts WHERE COALESCE(handled, 0) = 0 ORDER BY timestamp DESC LIMIT 50")
-        rows = c.fetchall()
-        conn.close()
-    except Exception as e:
-        logger.warning(f"读取报警记录失败: {e}")
-        return []
-    
-    messages = {"temperature": "温度", "humidity": "湿度", "vibration": "振动"}
-    alerts = []
-    for row in rows:
-        level_text = "danger" if row[5] == "danger" else "warning"
-        level_emoji = "🚨" if row[5] == "danger" else "⚠️"
-        alerts.append({
-            "id": row[0],
-            "title": f"{level_emoji} {messages.get(row[2], row[2])}异常",
-            "time": row[1],
-            "source": "传感器节点",
-            "level": level_text
-        })
-    
-    return alerts
+    return latest_alerts
 
 @app.post("/api/alerts/{alert_id}/handle")
 async def handle_alert(alert_id: int):
