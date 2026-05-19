@@ -1422,6 +1422,7 @@
 
         .alarm-info {
             flex: 1;
+            min-width: 0;
         }
 
         .alarm-title-text {
@@ -1438,6 +1439,7 @@
         .alarm-time {
             font-size: 12px;
             color: #9ca3af;
+            line-height: 1.5;
         }
 
         .alarm-handle-btn {
@@ -2821,7 +2823,9 @@
 
             const threshold = type === 'temp' ? tempMax : (type === 'humid' ? humidMax : vibMax);
 
-            const status = serverStatus || (value > threshold * 1.2 ? 'danger' : (value > threshold ? 'warning' : 'normal'));
+            const status = ['normal', 'warning', 'danger', 'missing'].includes(serverStatus)
+                ? serverStatus
+                : (value > threshold * 1.2 ? 'danger' : (value > threshold ? 'warning' : 'normal'));
 
             if (status === 'danger') {
                 statusEl.textContent = '超过阈值！';
@@ -2834,8 +2838,6 @@
             } else {
                 statusEl.textContent = '正常范围';
                 cardEl.className = 'sensor-status';
-                cardEl.style.background = '#ecfdf5';
-                cardEl.style.color = '#059669';
                 cardEl.innerHTML = '<span class="status-dot"></span>正常范围';
             }
         }
@@ -2952,6 +2954,7 @@
         async function refreshDatabaseSensors() {
             await refreshData();
             await fetchSensorEvents();
+            await fetchAlarms();
             if (historyChart) fetchHistoryData('hour');
         }
 
@@ -3834,7 +3837,6 @@
                     <span>${formatEventTime(event.timestamp)}</span>
                     <span class="sensor-event-status ${event.status}">${statusText[event.status] || event.status}</span>
                 </div>
-                    ${a.id ? `<button class="alarm-handle-btn" onclick="markAlertHandled(${a.id})">处理</button></div>` : ''}
             `).join('');
         }
 
@@ -3860,43 +3862,11 @@
             const list = document.getElementById('alertsList');
             const badge = document.getElementById('alertCount');
             const navBadge = document.getElementById('navAlertBadge');
-            
+            if (!list) return;
             if (!alarms || alarms.length === 0) {
                 list.innerHTML = '<div style="padding:40px;text-align:center;color:#9ca3af;">暂无报警记录</div>';
                 if (badge) { badge.style.display = 'none'; }
                 if (navBadge) { navBadge.style.display = 'none'; }
-                return;
-            }
-            list.innerHTML = alarms.map(a => `
-                <div class="alarm-item ${a.level === 'warning' ? 'warning' : ''}">
-                    <div class="alarm-icon-box">${a.level === 'warning' ? '!' : 'ALM'}</div>
-                    <div class="alarm-info">
-                        <div class="alarm-title-text">${a.title}</div>
-                        <div class="alarm-time">${a.time} · ${a.source}</div>
-                    </div>
-                    <button class="alarm-handle-btn" onclick="this.textContent='已处理'; this.disabled=true; this.style.background='#9ca3af'">处理</button>
-            `).join('');
-            if (badge) { badge.style.display = ''; badge.textContent = alarms.length; }
-            if (navBadge) { navBadge.style.display = ''; navBadge.textContent = alarms.length; }
-        }
-
-        async function markAlertHandled(id) {
-            const apiUrl = document.getElementById('apiUrl').value || 'http://localhost:8000';
-            try {
-                await fetch(`${apiUrl}/api/alerts/${id}/handle`, { method: 'POST' });
-            } catch(e) {}
-            fetchAlarms();
-        }
-
-        renderAlarms = function(alarms) {
-            const list = document.getElementById('alertsList');
-            const badge = document.getElementById('alertCount');
-            const navBadge = document.getElementById('navAlertBadge');
-            if (!list) return;
-            if (!alarms || alarms.length === 0) {
-                list.innerHTML = '<div style="padding:40px;text-align:center;color:#9ca3af;">暂无报警记录</div>';
-                if (badge) badge.style.display = 'none';
-                if (navBadge) navBadge.style.display = 'none';
                 return;
             }
             list.innerHTML = alarms.map(a => `
@@ -3911,6 +3881,14 @@
             `).join('');
             if (badge) { badge.style.display = ''; badge.textContent = alarms.length; }
             if (navBadge) { navBadge.style.display = ''; navBadge.textContent = alarms.length; }
+        }
+
+        async function markAlertHandled(id) {
+            const apiUrl = document.getElementById('apiUrl').value || 'http://localhost:8000';
+            try {
+                await fetch(`${apiUrl}/api/alerts/${id}/handle`, { method: 'POST' });
+            } catch(e) {}
+            fetchAlarms();
         }
 
         async function uploadRagDocument() {

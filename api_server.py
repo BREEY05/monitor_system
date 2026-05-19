@@ -743,8 +743,7 @@ class AlarmChecker:
         now = datetime.now()
         event_time = timestamp or now.isoformat()
         window_seconds = int(CONFIG.get("alarm_window_seconds", 60))
-        cooldown_seconds = int(CONFIG.get("alarm_cooldown_seconds", 300))
-        trigger_count = int(CONFIG.get("alarm_trigger_count", 3))
+        trigger_count = max(1, int(CONFIG.get("alarm_trigger_count", 3)))
         
         for sensor_type, value in [
             ("temperature", data.temperature),
@@ -766,8 +765,7 @@ class AlarmChecker:
                 points = [point for point in points if point["time"] >= cutoff]
                 self.anomaly_windows[key] = points
 
-                last_alert = self.last_alert_time.get(key)
-                if len(points) >= trigger_count and (not last_alert or (now - last_alert).total_seconds() >= cooldown_seconds):
+                if len(points) >= trigger_count:
                     level = "danger" if any(point["value"] > threshold * 1.2 for point in points) else "warning"
                     logger.warning(
                         "触发报警: type=%s value=%s threshold=%s count=%s window=%ss area=%s",
@@ -792,9 +790,15 @@ class AlarmChecker:
     
     def save_alert(self, alert: Dict):
         global latest_alerts
-        alert_id = int(time.time() * 1000)
         dedupe_key = f"{alert.get('area')}:{alert.get('type')}"
-        latest_alerts = [item for item in latest_alerts if item.get("dedupe_key") != dedupe_key]
+        existing = next((item for item in latest_alerts if item.get("dedupe_key") == dedupe_key), None)
+        if existing:
+            existing["time"] = datetime.now().isoformat()
+            existing["level"] = alert.get("level", existing.get("level", "warning"))
+            existing["detail"] = alert
+            self._notify_websocket(alert, int(existing.get("id", int(time.time() * 1000))))
+            return
+        alert_id = int(time.time() * 1000)
         alert_record = {
             "id": alert_id,
             "title": f"{SENSOR_META.get(alert['type'], {}).get('label', alert['type'])}异常",
@@ -805,10 +809,7 @@ class AlarmChecker:
             "dedupe_key": dedupe_key
         }
         latest_alerts = [alert_record] + latest_alerts[:49]
-        if alert.get("count") and CONFIG.get("feishu_webhook"):
-            send_feishu_text_fixed(build_alarm_message_fixed(alert))
-        else:
-            self._notify_feishu(alert, alert_id)
+        send_feishu_text(build_alarm_message(alert))
         self._notify_websocket(alert, alert_id)
         try:
             conn = get_db_connection()
@@ -857,7 +858,10 @@ class AlarmChecker:
                 "source": "传感器节点"
             }
         }
-        asyncio.create_task(manager.broadcast(notification))
+        try:
+            asyncio.get_running_loop().create_task(manager.broadcast(notification))
+        except RuntimeError:
+            logger.debug("当前没有运行中的事件循环，跳过报警 WebSocket 广播")
 
 # ==================== AI 对话 ====================
 def build_ai_system_prompt(context: str) -> str:
@@ -930,6 +934,22 @@ def strip_thinking_text(text: str) -> str:
 def send_feishu_text(text: str) -> bool:
     webhook = CONFIG.get("feishu_webhook", "").strip()
     if not webhook:
+        logger.warning("飞书机器人 webhook 未配置，消息未发送")
+        return False
+    try:
+        import requests
+        response = requests.post(
+            webhook,
+            json={"msg_type": "text", "content": {"text": text}},
+            timeout=8
+        )
+        if response.status_code != 200:
+            logger.warning("飞书机器人发送失败: status=%s body=%s", response.status_code, response.text[:300])
+            return False
+        logger.info("飞书机器人消息已发送")
+        return True
+    except Exception as e:
+        logger.warning("飞书机器人发送异常: %s", e, exc_info=True)
         return False
 
 
@@ -957,41 +977,9 @@ def build_alarm_message(alert: Dict) -> str:
 判断: {area}有问题
 
 请及时处理。"""
-    try:
-        import requests
-        response = requests.post(
-            webhook,
-            json={"msg_type": "text", "content": {"text": text}},
-            timeout=8
-        )
-        if response.status_code != 200:
-            logger.warning(f"飞书机器人发送失败：status={response.status_code}, body={response.text[:200]}")
-            return False
-        return True
-    except Exception as e:
-        logger.warning(f"飞书机器人发送失败：{e}")
-        return False
 
 def send_feishu_text_fixed(text: str) -> bool:
-    webhook = CONFIG.get("feishu_webhook", "").strip()
-    if not webhook:
-        logger.warning("飞书机器人 webhook 未配置，消息未发送")
-        return False
-    try:
-        import requests
-        response = requests.post(
-            webhook,
-            json={"msg_type": "text", "content": {"text": text}},
-            timeout=8
-        )
-        if response.status_code != 200:
-            logger.warning("飞书机器人发送失败: status=%s body=%s", response.status_code, response.text[:300])
-            return False
-        logger.info("飞书机器人消息已发送")
-        return True
-    except Exception as e:
-        logger.warning("飞书机器人发送异常: %s", e, exc_info=True)
-        return False
+    return send_feishu_text(text)
 
 def build_alarm_message_fixed(alert: Dict) -> str:
     names = {"temperature": "温度", "humidity": "湿度", "vibration": "振动"}
@@ -1493,7 +1481,12 @@ def sensor_payload_response(data: SensorData, timestamp: str, device_id: str = "
         "timestamp": timestamp,
         "device_id": device_id,
         "area": area,
-        "source": "database"
+        "source": "database",
+        "statuses": {
+            "temperature": sensor_status("temperature", data.temperature),
+            "humidity": sensor_status("humidity", data.humidity),
+            "vibration": sensor_status("vibration", data.vibration),
+        }
     }
 
 def build_sensor_events(data: SensorData, timestamp: str, device_id: str, area: str) -> List[Dict[str, Any]]:
@@ -1541,12 +1534,12 @@ def remember_live_sensor_data(payload: RaspberrySensorPayload) -> Dict[str, Any]
         "humidity": sensor_status("humidity", data.humidity),
         "vibration": sensor_status("vibration", data.vibration),
     }
-    alerts = alarm_checker.check(data, timestamp=timestamp, device_id=device_id, area=area)
-    for alert in alerts:
-        threading.Thread(target=alarm_checker.save_alert, args=(alert,), daemon=True).start()
-    live["alerts"] = len(alerts)
     latest_pi_sensor_data = live
     latest_sensor_events = (build_sensor_events(data, timestamp, device_id, area) + latest_sensor_events)[:100]
+    alerts = alarm_checker.check(data, timestamp=timestamp, device_id=device_id, area=area)
+    for alert in alerts:
+        alarm_checker.save_alert(alert)
+    live["alerts"] = len(alerts)
     return live
 
 def persist_sensor_payload_background(payload: RaspberrySensorPayload):
@@ -2416,7 +2409,7 @@ async def update_settings(settings: dict):
         CONFIG["thresholds"]["vibration"] = float(CONFIG["thresholds"].get("vibration", 0.5))
     CONFIG["alarm_trigger_count"] = int(CONFIG.get("alarm_trigger_count", 3))
     CONFIG["alarm_window_seconds"] = int(CONFIG.get("alarm_window_seconds", 60))
-    CONFIG["alarm_cooldown_seconds"] = min(int(CONFIG.get("alarm_cooldown_seconds", 300)), CONFIG["alarm_window_seconds"])
+    CONFIG["alarm_cooldown_seconds"] = 0
     if any(key in settings for key in ("thresholds", "alarm_trigger_count", "alarm_window_seconds")):
         alarm_checker.anomaly_windows.clear()
         alarm_checker.last_alert_time.clear()
