@@ -3886,9 +3886,12 @@
         async function markAlertHandled(id) {
             const apiUrl = document.getElementById('apiUrl').value || 'http://localhost:8000';
             try {
-                await fetch(`${apiUrl}/api/alerts/${id}/handle`, { method: 'POST' });
-            } catch(e) {}
-            fetchAlarms();
+                const res = await fetch(`${apiUrl}/api/alerts/${id}/handle`, { method: 'POST' });
+                if (!res.ok) throw new Error('handle failed');
+            } catch(e) {
+                console.warn('处理报警失败', e);
+            }
+            await fetchAlarms();
         }
 
         async function uploadRagDocument() {

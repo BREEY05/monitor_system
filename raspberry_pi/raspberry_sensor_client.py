@@ -11,7 +11,8 @@ AREA = "A区"
 DHT11_GPIO = 4
 SW420_GPIO = 17
 INTERVAL_SECONDS = 1
-HTTP_TIMEOUT_SECONDS = 1.5
+HTTP_TIMEOUT_SECONDS = 4
+HTTP_SESSION = requests.Session()
 
 
 try:
@@ -59,7 +60,7 @@ def read_sensor_data(dht, vibration):
 def upload(data):
     endpoint = SERVER_URL.rstrip("/") + "/api/raspberry/sensors"
     payload = {k: v for k, v in data.items() if v is not None}
-    response = requests.post(endpoint, json=payload, timeout=HTTP_TIMEOUT_SECONDS)
+    response = HTTP_SESSION.post(endpoint, json=payload, timeout=HTTP_TIMEOUT_SECONDS)
     response.raise_for_status()
 
 

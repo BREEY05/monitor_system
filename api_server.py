@@ -27,6 +27,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Any
 from pathlib import Path
 from queue import Queue
+from itertools import count
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request, UploadFile, File, Form
 from fastapi.responses import JSONResponse, FileResponse, HTMLResponse, RedirectResponse
@@ -731,12 +732,18 @@ class ConnectionManager:
             self.disconnect(ws)
 
 manager = ConnectionManager()
+alert_id_counter = count(1)
+
+def next_alert_id() -> int:
+    return int(time.time() * 1000) * 1000 + next(alert_id_counter) % 1000
 
 # ==================== 报警检测 ====================
 class AlarmChecker:
     def __init__(self):
         self.anomaly_windows = {}
         self.last_alert_time = {}
+        self.acknowledged_keys = set()
+        self.alert_lock = threading.Lock()
     
     def check(self, data: SensorData, timestamp: str = None, device_id: str = "", area: str = "") -> List[Dict]:
         alerts = []
@@ -757,8 +764,16 @@ class AlarmChecker:
             if threshold is None:
                 continue
             
+            key = f"{device_id}:{area}:{sensor_type}"
+            if value <= threshold:
+                self.anomaly_windows.pop(key, None)
+                self.acknowledged_keys.discard(f"{area}:{sensor_type}")
+                continue
+
             if value > threshold:
-                key = f"{device_id}:{area}:{sensor_type}"
+                dedupe_key = f"{area}:{sensor_type}"
+                if dedupe_key in self.acknowledged_keys:
+                    continue
                 points = self.anomaly_windows.get(key, [])
                 points.append({"time": now, "timestamp": event_time, "value": value})
                 cutoff = now - timedelta(seconds=window_seconds)
@@ -791,24 +806,27 @@ class AlarmChecker:
     def save_alert(self, alert: Dict):
         global latest_alerts
         dedupe_key = f"{alert.get('area')}:{alert.get('type')}"
-        existing = next((item for item in latest_alerts if item.get("dedupe_key") == dedupe_key), None)
-        if existing:
-            existing["time"] = datetime.now().isoformat()
-            existing["level"] = alert.get("level", existing.get("level", "warning"))
-            existing["detail"] = alert
-            self._notify_websocket(alert, int(existing.get("id", int(time.time() * 1000))))
-            return
-        alert_id = int(time.time() * 1000)
-        alert_record = {
-            "id": alert_id,
-            "title": f"{SENSOR_META.get(alert['type'], {}).get('label', alert['type'])}异常",
-            "time": datetime.now().isoformat(),
-            "source": alert.get("area") or "树莓派",
-            "level": alert.get("level", "warning"),
-            "detail": alert,
-            "dedupe_key": dedupe_key
-        }
-        latest_alerts = [alert_record] + latest_alerts[:49]
+        with self.alert_lock:
+            if dedupe_key in self.acknowledged_keys:
+                return
+            existing = next((item for item in latest_alerts if item.get("dedupe_key") == dedupe_key), None)
+            if existing:
+                existing["time"] = datetime.now().isoformat()
+                existing["level"] = alert.get("level", existing.get("level", "warning"))
+                existing["detail"] = alert
+                self._notify_websocket(alert, int(existing.get("id", next_alert_id())))
+                return
+            alert_id = next_alert_id()
+            alert_record = {
+                "id": alert_id,
+                "title": f"{SENSOR_META.get(alert['type'], {}).get('label', alert['type'])}异常",
+                "time": datetime.now().isoformat(),
+                "source": alert.get("area") or "树莓派",
+                "level": alert.get("level", "warning"),
+                "detail": alert,
+                "dedupe_key": dedupe_key
+            }
+            latest_alerts = [alert_record] + latest_alerts[:49]
         send_feishu_text(build_alarm_message(alert))
         self._notify_websocket(alert, alert_id)
         try:
@@ -823,6 +841,24 @@ class AlarmChecker:
         except Exception as e:
             logger.warning(f"保存报警记录到数据库失败: {e}")
     
+    def handle_alert(self, alert_id: int) -> int:
+        global latest_alerts
+        with self.alert_lock:
+            handled = next((alert for alert in latest_alerts if int(alert.get("id", 0)) == alert_id), None)
+            if handled and handled.get("dedupe_key"):
+                self.acknowledged_keys.add(handled["dedupe_key"])
+            latest_alerts = [alert for alert in latest_alerts if int(alert.get("id", 0)) != alert_id]
+            remaining = len(latest_alerts)
+        try:
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("UPDATE alerts SET handled = 1 WHERE id = ?", (alert_id,))
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            logger.warning(f"标记报警已处理失败: {e}")
+        return remaining
+
     def _notify_feishu(self, alert: Dict, alert_id: int):
         if not CONFIG["feishu_webhook"]:
             return
@@ -1537,10 +1573,16 @@ def remember_live_sensor_data(payload: RaspberrySensorPayload) -> Dict[str, Any]
     latest_pi_sensor_data = live
     latest_sensor_events = (build_sensor_events(data, timestamp, device_id, area) + latest_sensor_events)[:100]
     alerts = alarm_checker.check(data, timestamp=timestamp, device_id=device_id, area=area)
-    for alert in alerts:
-        alarm_checker.save_alert(alert)
     live["alerts"] = len(alerts)
+    for alert in alerts:
+        threading.Thread(target=process_live_alert_background, args=(alert,), daemon=True).start()
     return live
+
+def process_live_alert_background(alert: Dict[str, Any]):
+    try:
+        alarm_checker.save_alert(alert)
+    except Exception as e:
+        logger.warning(f"后台处理实时报警失败: {e}", exc_info=True)
 
 def persist_sensor_payload_background(payload: RaspberrySensorPayload):
     try:
@@ -1808,11 +1850,15 @@ async def get_anomaly_data(limit: int = 500):
 async def get_alerts():
     if latest_alerts:
         return latest_alerts
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("SELECT id, timestamp, sensor_type, value, threshold, level FROM alerts ORDER BY timestamp DESC LIMIT 50")
-    rows = c.fetchall()
-    conn.close()
+    try:
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("SELECT id, timestamp, sensor_type, value, threshold, level FROM alerts WHERE COALESCE(handled, 0) = 0 ORDER BY timestamp DESC LIMIT 50")
+        rows = c.fetchall()
+        conn.close()
+    except Exception as e:
+        logger.warning(f"读取报警记录失败: {e}")
+        return []
     
     messages = {"temperature": "温度", "humidity": "湿度", "vibration": "振动"}
     alerts = []
@@ -1831,9 +1877,8 @@ async def get_alerts():
 
 @app.post("/api/alerts/{alert_id}/handle")
 async def handle_alert(alert_id: int):
-    global latest_alerts
-    latest_alerts = [alert for alert in latest_alerts if int(alert.get("id", 0)) != alert_id]
-    return {"success": True, "remaining": len(latest_alerts)}
+    remaining = alarm_checker.handle_alert(alert_id)
+    return {"success": True, "remaining": remaining}
 
 @app.post("/api/ollama/test")
 async def test_ollama_connection(request: OllamaTestRequest):
