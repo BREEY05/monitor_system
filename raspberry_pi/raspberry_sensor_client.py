@@ -6,7 +6,7 @@ import requests
 
 # Only edit these values.
 SERVER_URL = "http://192.168.43.105:8000"
-DEVICE_ID = "raspberry-pi-5"
+DEVICE_ID = "raspberry-pi-4b"
 AREA = "A区"
 DHT11_GPIO = 4
 SW420_GPIO = 17
