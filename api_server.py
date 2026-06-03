@@ -40,6 +40,37 @@ import uvicorn
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# ==================== 多 Agent 协作框架 ====================
+_orchestrator = None
+
+def get_orchestrator():
+    """获取或懒加载多 Agent 编排器实例。"""
+    global _orchestrator
+    if _orchestrator is None:
+        try:
+            from agents import create_orchestrator
+            backend = "ollama"
+            base_url = CONFIG.get("ollama_url", "http://localhost:11434")
+            model = CONFIG.get("ollama_model", "qwen3.5:0.8b")
+            # 支持云端 API 配置
+            if CONFIG.get("agent_api_backend") == "openai":
+                backend = "openai"
+                base_url = CONFIG.get("agent_api_url", base_url)
+                model = CONFIG.get("agent_api_model", model)
+            _orchestrator = create_orchestrator(
+                backend=backend,
+                base_url=base_url,
+                model=model,
+                api_key=CONFIG.get("agent_api_key", ""),
+                temperature=0.2,
+                timeout=120,
+            )
+            logger.info(f"多 Agent 编排器初始化成功 (backend={backend}, model={model})")
+        except Exception as e:
+            logger.error(f"多 Agent 编排器初始化失败: {e}", exc_info=True)
+            return None
+    return _orchestrator
+
 BASE_DIR = Path(__file__).parent
 DB_PATH = BASE_DIR / "monitor_data.db"
 CONFIG_PATH = BASE_DIR / "config.json"
@@ -78,6 +109,12 @@ CONFIG = {
     "rag_enabled": True,
     "agent_search_enabled": True,
     "rag_top_k": 4,
+    # Agent 系统配置
+    "agent_enabled": True,
+    "agent_api_backend": "ollama",    # "ollama" | "openai"
+    "agent_api_url": "",              # 云端 API 地址（openai 后端时使用）
+    "agent_api_model": "",            # 云端模型名（openai 后端时使用）
+    "agent_api_key": "",              # 云端 API 密钥
     "selected_device_id": "device-1",
     "devices": [],
     "device_info": {
@@ -2122,7 +2159,8 @@ async def chat_websocket(websocket: WebSocket):
             message = data.get("message", "")
             model = data.get("model")
             api_url = data.get("api_url")
-            logger.info(f"收到 AI 消息：{message} (model={model}, api_url={api_url})")
+            use_agent = data.get("agent_mode", True)  # 默认启用 Agent 模式
+            logger.info(f"收到 AI 消息：{message} (model={model}, agent_mode={use_agent})")
             
             if not message:
                 continue
@@ -2135,6 +2173,16 @@ async def chat_websocket(websocket: WebSocket):
             if latest.vibration: context_parts.append(f"振动：{latest.vibration}mm/s")
             context = ", ".join(context_parts) or "暂无数据"
             
+            # Agent 模式：通过编排器路由
+            if use_agent:
+                orchestrator = get_orchestrator()
+                if orchestrator:
+                    await _handle_agent_chat(websocket, message, context, orchestrator)
+                    continue
+                else:
+                    logger.warning("Agent 编排器不可用，降级为直接对话模式")
+            
+            # 降级模式：直接调用 Ollama
             await chat_with_ollama_stream(websocket, message, context, model, api_url)
             
     except WebSocketDisconnect:
@@ -2143,6 +2191,48 @@ async def chat_websocket(websocket: WebSocket):
         logger.error(f"AI 对话 WebSocket 错误：{e}")
         try:
             await websocket.send_json({"type": "error", "content": "处理消息时出错"})
+        except:
+            pass
+
+
+async def _handle_agent_chat(websocket: WebSocket, message: str, context: str, orchestrator):
+    """通过多 Agent 编排器处理 WebSocket 聊天消息。"""
+    try:
+        async def on_status(status_type, data):
+            try:
+                await websocket.send_json({"type": "status", "agent_status": status_type, "content": data})
+            except (WebSocketDisconnect, RuntimeError):
+                pass
+        
+        async def on_content(chunk):
+            try:
+                await websocket.send_json({"type": "content", "content": chunk})
+            except (WebSocketDisconnect, RuntimeError):
+                pass
+        
+        reply = await orchestrator.handle_message_stream(
+            message=message,
+            context={"sensor_context": context},
+            on_status=on_status,
+            on_content=on_content,
+        )
+        
+        try:
+            await websocket.send_json({"type": "done", "full_reply": reply})
+        except (WebSocketDisconnect, RuntimeError):
+            pass
+        
+        # 飞书转发
+        if CONFIG.get("feishu_forward_ai_replies", False) and reply.strip():
+            send_feishu_text_fixed(f"网页 AI 回复：\n{reply.strip()}")
+        
+    except WebSocketDisconnect:
+        logger.info("Agent 对话 WebSocket 断开")
+    except Exception as e:
+        logger.error(f"Agent 对话处理失败: {e}", exc_info=True)
+        try:
+            await websocket.send_json({"type": "content", "content": f"\nAgent 系统暂时不可用：{str(e)[:100]}"})
+            await websocket.send_json({"type": "done"})
         except:
             pass
 
@@ -2459,6 +2549,59 @@ async def upload_device_model(file: UploadFile = File(...), device_id: Optional[
         "filename": file.filename,
         "storage_backend": storage_backend,
         "cloud_saved": cloud_saved
+    }
+
+# ==================== Agent 系统 API ====================
+
+@app.get("/api/agent/status")
+async def agent_status():
+    """获取多 Agent 编排器的状态和运行统计。"""
+    orchestrator = get_orchestrator()
+    if not orchestrator:
+        return {"enabled": False, "message": "Agent 编排器未初始化"}
+    from agents import TOOL_SCHEMAS
+    return {
+        "enabled": True,
+        "stats": orchestrator.get_stats(),
+        "available_tools": TOOL_SCHEMAS,
+        "llm_backend": orchestrator.llm.backend,
+        "llm_model": orchestrator.llm.model,
+    }
+
+@app.post("/api/agent/chat")
+async def agent_chat(request: ChatRequest):
+    """通过 Agent 系统处理对话（非流式 HTTP 接口）。"""
+    orchestrator = get_orchestrator()
+    if not orchestrator:
+        return JSONResponse(
+            status_code=503,
+            content={"reply": "Agent 系统暂不可用，请检查 LLM 后端配置。"}
+        )
+    context_parts = []
+    latest = sensor_reader.read()
+    if latest.temperature: context_parts.append(f"温度：{latest.temperature}°C")
+    if latest.humidity: context_parts.append(f"湿度：{latest.humidity}%")
+    if latest.pressure: context_parts.append(f"气压：{latest.pressure}hPa")
+    if latest.vibration: context_parts.append(f"振动：{latest.vibration}mm/s")
+    context = ", ".join(context_parts) or "暂无数据"
+
+    result = await orchestrator.handle_message(
+        message=request.message,
+        context={"sensor_context": context},
+    )
+    return result
+
+@app.post("/api/agent/test")
+async def agent_test():
+    """测试 Agent 编排器是否正常工作。"""
+    orchestrator = get_orchestrator()
+    if not orchestrator:
+        return {"success": False, "message": "Agent 编排器初始化失败"}
+    llm_status = orchestrator.llm.test_connection()
+    return {
+        "success": llm_status.get("success", False),
+        "llm": llm_status,
+        "agents": list(orchestrator.agents.keys()),
     }
 
 # ==================== 启动服务 ====================
