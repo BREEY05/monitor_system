@@ -20,8 +20,8 @@
 
         body {
             font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: #f0f2f5;
-            color: #333;
+            background: #f7f8fa;
+            color: #1f2937;
             line-height: 1.6;
             overflow-x: hidden;
         }
@@ -31,109 +31,113 @@
             height: 100vh;
         }
 
-        /* ===== 侧边栏 - 深蓝色 ===== */
+        /* ===== 侧边栏 - 简洁白色 ===== */
         .sidebar {
-            width: 240px;
-            background: linear-gradient(180deg, #1e3a5f 0%, #152d4a 100%);
-            color: #fff;
+            width: 232px;
+            background: #ffffff;
+            color: #374151;
             display: flex;
             flex-direction: column;
             flex-shrink: 0;
             position: fixed;
             height: 100vh;
             z-index: 100;
+            border-right: 1px solid #eef0f4;
         }
 
         .logo-section {
-            padding: 24px 20px;
-            background: rgba(0, 0, 0, 0.15);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 22px 20px;
+            background: transparent;
+            border-bottom: 1px solid #f0f1f5;
         }
 
         .logo-title {
-            font-size: 20px;
+            font-size: 17px;
             font-weight: 700;
-            color: #fff;
+            color: #111827;
             line-height: 1.4;
             margin-bottom: 2px;
         }
 
         .logo-subtitle {
-            font-size: 12px;
-            color: rgba(255, 255, 255, 0.6);
-            letter-spacing: 0.5px;
+            font-size: 11px;
+            color: #9ca3af;
+            letter-spacing: 0.3px;
+            font-weight: 400;
         }
 
         .nav-menu {
             flex: 1;
-            padding: 16px 0;
+            padding: 12px 8px;
             overflow-y: auto;
         }
 
         .nav-item {
             display: flex;
             align-items: center;
-            padding: 14px 24px;
+            padding: 10px 14px;
             cursor: pointer;
-            transition: all 0.25s ease;
-            color: rgba(255, 255, 255, 0.85);
-            font-size: 14px;
+            transition: all 0.15s ease;
+            color: #6b7280;
+            font-size: 13.5px;
             font-weight: 400;
-            border-left: 3px solid transparent;
-            gap: 12px;
+            border-left: 2px solid transparent;
+            gap: 10px;
+            border-radius: 6px;
+            margin-bottom: 2px;
         }
 
         .nav-item:hover {
-            background: rgba(255, 255, 255, 0.08);
-            color: #fff;
+            background: #f3f4f6;
+            color: #374151;
         }
 
         .nav-item.active {
-            background: linear-gradient(90deg, #f59e0b 0%, #f97316 100%);
-            color: #fff;
-            border-left-color: #fff;
-            font-weight: 600;
-            box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+            background: #f0f4ff;
+            color: #1d4ed8;
+            border-left-color: transparent;
+            font-weight: 500;
+            box-shadow: none;
         }
 
         .nav-icon {
             width: 20px;
             text-align: center;
-            font-size: 18px;
+            font-size: 16px;
         }
 
         .nav-badge {
             margin-left: auto;
             background: #ef4444;
             color: white;
-            font-size: 11px;
-            padding: 2px 8px;
+            font-size: 10px;
+            padding: 1px 7px;
             border-radius: 10px;
             font-weight: 600;
         }
 
         .sidebar-footer {
-            padding: 16px 20px;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
-            background: rgba(0, 0, 0, 0.15);
+            padding: 14px 16px;
+            border-top: 1px solid #f0f1f5;
+            background: transparent;
         }
 
         .user-info {
             display: flex;
             align-items: center;
             gap: 10px;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
         }
 
         .user-avatar {
-            width: 32px;
-            height: 32px;
+            width: 30px;
+            height: 30px;
             border-radius: 6px;
-            background: rgba(255, 255, 255, 0.15);
+            background: #f3f4f6;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 16px;
+            font-size: 14px;
         }
 
         .user-details {
@@ -141,43 +145,43 @@
         }
 
         .user-name {
-            font-size: 13px;
+            font-size: 12.5px;
             font-weight: 600;
-            color: #fff;
+            color: #1f2937;
         }
 
         .user-role {
             font-size: 11px;
-            color: rgba(255, 255, 255, 0.55);
+            color: #9ca3af;
         }
 
         .logout-btn {
             width: 100%;
-            padding: 9px 16px;
+            padding: 8px 14px;
             background: transparent;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid #e5e7eb;
             border-radius: 6px;
-            color: rgba(255, 255, 255, 0.85);
-            font-size: 13px;
+            color: #6b7280;
+            font-size: 12.5px;
             cursor: pointer;
-            transition: all 0.25s ease;
+            transition: all 0.15s ease;
             font-family: inherit;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
+            gap: 6px;
         }
 
         .logout-btn:hover {
-            background: rgba(239, 68, 68, 0.2);
-            border-color: #ef4444;
-            color: #fecaca;
+            background: #fef2f2;
+            border-color: #fecaca;
+            color: #dc2626;
         }
 
         /* ===== 主内容区 ===== */
         .main-content {
             flex: 1;
-            margin-left: 240px;
+            margin-left: 232px;
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -185,87 +189,87 @@
 
         /* ===== 头部 ===== */
         .header {
-            height: 60px;
-            background: #fff;
-            border-bottom: 1px solid #e5e7eb;
+            height: 56px;
+            background: #ffffff;
+            border-bottom: 1px solid #eef0f4;
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 0 28px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            box-shadow: none;
             z-index: 50;
         }
 
         .header-left {
             display: flex;
             align-items: center;
-            gap: 20px;
+            gap: 16px;
         }
 
         .page-title {
-            font-size: 20px;
+            font-size: 17px;
             font-weight: 600;
-            color: #1f2937;
+            color: #111827;
         }
 
         .page-desc {
-            font-size: 13px;
-            color: #6b7280;
+            font-size: 12.5px;
+            color: #9ca3af;
         }
 
         .header-right {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 12px;
         }
 
         .header-action {
-            background: #f3f4f6;
+            background: #ffffff;
             border: 1px solid #e5e7eb;
-            color: #374151;
-            padding: 7px 16px;
+            color: #4b5563;
+            padding: 6px 14px;
             border-radius: 6px;
             cursor: pointer;
-            transition: all 0.2s ease;
-            font-size: 13px;
+            transition: all 0.15s ease;
+            font-size: 12.5px;
             font-family: inherit;
         }
 
         .header-action:hover {
-            background: #e5e7eb;
+            background: #f9fafb;
             border-color: #d1d5db;
         }
 
         .alert-bell {
             position: relative;
             cursor: pointer;
-            font-size: 20px;
-            color: #6b7280;
-            transition: all 0.2s ease;
+            font-size: 18px;
+            color: #9ca3af;
+            transition: all 0.15s ease;
             background: none;
             border: none;
-            padding: 8px;
+            padding: 6px;
         }
 
         .alert-bell:hover {
-            color: #f59e0b;
+            color: #6b7280;
         }
 
         .alert-count {
             position: absolute;
-            top: 4px;
-            right: 4px;
+            top: 2px;
+            right: 2px;
             background: #ef4444;
             color: white;
-            font-size: 10px;
+            font-size: 9px;
             font-weight: 700;
-            min-width: 18px;
-            height: 18px;
-            border-radius: 9px;
+            min-width: 16px;
+            height: 16px;
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 0 5px;
+            padding: 0 4px;
         }
 
         /* ===== 内容区域 ===== */
@@ -273,7 +277,7 @@
             flex: 1;
             overflow-y: auto;
             padding: 24px 28px;
-            background: #f0f2f5;
+            background: #f7f8fa;
         }
 
         .page {
@@ -282,22 +286,22 @@
 
         .page.active {
             display: block;
-            animation: fadeIn 0.3s ease;
+            animation: fadeIn 0.2s ease;
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(8px); }
+            from { opacity: 0; transform: translateY(4px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
         /* ===== 卡片样式 ===== */
         .card {
-            background: #fff;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
+            background: #ffffff;
+            border: 1px solid #eef0f4;
+            border-radius: 10px;
             padding: 20px;
             margin-bottom: 20px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+            box-shadow: none;
         }
 
         .card-header {
@@ -306,91 +310,91 @@
             justify-content: space-between;
             margin-bottom: 16px;
             padding-bottom: 12px;
-            border-bottom: 1px solid #f3f4f6;
+            border-bottom: 1px solid #f5f5f7;
         }
 
         .card-title {
-            font-size: 16px;
+            font-size: 14.5px;
             font-weight: 600;
-            color: #1f2937;
+            color: #111827;
         }
 
         /* ===== Dashboard - 传感器卡片 ===== */
         .sensor-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 16px;
-            margin-bottom: 24px;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 14px;
+            margin-bottom: 22px;
         }
 
         .sensor-card {
-            background: #fff;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 20px;
-            border-left: 4px solid #3b82f6;
-            transition: all 0.25s ease;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+            background: #ffffff;
+            border: 1px solid #eef0f4;
+            border-radius: 10px;
+            padding: 18px;
+            border-left: 1px solid #eef0f4;
+            transition: all 0.15s ease;
+            box-shadow: none;
         }
 
         .sensor-card:hover {
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-            transform: translateY(-2px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            transform: translateY(-1px);
         }
 
-        .sensor-card.temperature { border-left-color: #f59e0b; }
-        .sensor-card.humidity { border-left-color: #3b82f6; }
-        .sensor-card.pressure { border-left-color: #10b981; }
-        .sensor-card.vibration { border-left-color: #ef4444; }
+        .sensor-card.temperature { border-left: 1px solid #eef0f4; }
+        .sensor-card.humidity { border-left: 1px solid #eef0f4; }
+        .sensor-card.pressure { border-left: 1px solid #eef0f4; }
+        .sensor-card.vibration { border-left: 1px solid #eef0f4; }
 
         .sensor-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
         }
 
         .sensor-label {
-            font-size: 13px;
-            color: #6b7280;
+            font-size: 12.5px;
+            color: #9ca3af;
             font-weight: 500;
         }
 
         .sensor-icon {
-            width: 36px;
-            height: 36px;
+            width: 32px;
+            height: 32px;
             border-radius: 8px;
-            background: #f3f4f6;
+            background: #f9fafb;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 18px;
+            font-size: 16px;
         }
 
         .sensor-value {
-            font-size: 32px;
+            font-size: 28px;
             font-weight: 700;
-            color: #1f2937;
+            color: #111827;
             line-height: 1;
             margin-bottom: 4px;
         }
 
         .sensor-unit {
-            font-size: 14px;
-            color: #6b7280;
+            font-size: 13px;
+            color: #9ca3af;
             font-weight: 400;
         }
 
         .sensor-status {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            font-size: 12px;
-            margin-top: 10px;
-            padding: 4px 10px;
+            gap: 5px;
+            font-size: 11.5px;
+            margin-top: 8px;
+            padding: 3px 9px;
             border-radius: 4px;
-            background: #ecfdf5;
-            color: #059669;
+            background: #f0fdf4;
+            color: #16a34a;
             font-weight: 500;
         }
 
@@ -405,8 +409,8 @@
         }
 
         .status-dot {
-            width: 6px;
-            height: 6px;
+            width: 5px;
+            height: 5px;
             border-radius: 50%;
             background: currentColor;
         }
@@ -415,12 +419,12 @@
         .charts-row {
             display: grid;
             grid-template-columns: 2fr 1fr;
-            gap: 20px;
-            margin-bottom: 24px;
+            gap: 16px;
+            margin-bottom: 20px;
         }
 
         .chart-container {
-            height: 340px;
+            height: 320px;
             width: 100%;
         }
 
@@ -428,34 +432,34 @@
         .device-list {
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
         }
 
         .device-item {
             display: flex;
             align-items: center;
-            padding: 14px 16px;
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
-            border-radius: 6px;
-            transition: all 0.2s ease;
+            padding: 12px 14px;
+            background: #fafafa;
+            border: 1px solid #f0f1f5;
+            border-radius: 8px;
+            transition: all 0.15s ease;
         }
 
         .device-item:hover {
-            background: #f3f4f6;
-            border-color: #d1d5db;
+            background: #f5f5f7;
+            border-color: #e5e7eb;
         }
 
         .device-avatar {
-            width: 38px;
-            height: 38px;
+            width: 34px;
+            height: 34px;
             border-radius: 8px;
-            background: #eff6ff;
+            background: #f3f4f6;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 18px;
-            margin-right: 12px;
+            font-size: 16px;
+            margin-right: 10px;
         }
 
         .device-info {
@@ -464,38 +468,38 @@
 
         .device-name {
             font-weight: 600;
-            font-size: 14px;
+            font-size: 13px;
             color: #1f2937;
-            margin-bottom: 2px;
+            margin-bottom: 1px;
         }
 
         .device-location {
-            font-size: 12px;
+            font-size: 11.5px;
             color: #9ca3af;
         }
 
         .device-status-online {
-            color: #10b981;
-            font-size: 12px;
-            font-weight: 600;
+            color: #16a34a;
+            font-size: 11.5px;
+            font-weight: 500;
         }
 
         /* ===== AI 对话页面 ===== */
         .chat-layout {
             display: grid;
-            grid-template-columns: 1fr 320px;
-            gap: 20px;
-            height: calc(100vh - 160px);
+            grid-template-columns: 1fr 300px;
+            gap: 16px;
+            height: calc(100vh - 148px);
         }
 
         .chat-main {
-            background: #fff;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
+            background: #ffffff;
+            border: 1px solid #eef0f4;
+            border-radius: 10px;
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+            box-shadow: none;
         }
 
         .chat-messages {
@@ -504,18 +508,18 @@
             padding: 20px;
             display: flex;
             flex-direction: column;
-            gap: 14px;
+            gap: 12px;
         }
 
         .message {
             display: flex;
-            gap: 10px;
-            max-width: 85%;
-            animation: messageIn 0.25s ease;
+            gap: 8px;
+            max-width: 82%;
+            animation: messageIn 0.2s ease;
         }
 
         @keyframes messageIn {
-            from { opacity: 0; transform: translateY(8px); }
+            from { opacity: 0; transform: translateY(4px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
@@ -525,42 +529,42 @@
         }
 
         .message-avatar {
-            width: 34px;
-            height: 34px;
+            width: 30px;
+            height: 30px;
             border-radius: 6px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 16px;
+            font-size: 14px;
             flex-shrink: 0;
         }
 
         .message.ai .message-avatar {
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
-            color: white;
+            background: #f3f4f6;
+            color: #4b5563;
         }
 
         .message.user .message-avatar {
-            background: linear-gradient(135deg, #10b981, #059669);
-            color: white;
+            background: #f3f4f6;
+            color: #4b5563;
         }
 
         .message-content {
-            padding: 12px 16px;
+            padding: 10px 14px;
             border-radius: 8px;
-            font-size: 14px;
+            font-size: 13.5px;
             line-height: 1.6;
         }
 
         .message.ai .message-content {
-            background: #f3f4f6;
+            background: #f5f5f7;
             color: #1f2937;
             border-top-left-radius: 2px;
         }
 
         .message.user .message-content {
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
-            color: white;
+            background: #111827;
+            color: #ffffff;
             border-top-right-radius: 2px;
         }
 
@@ -570,30 +574,30 @@
         }
 
         .message.system .message-content {
-            background: #fefce8;
-            border: 1px dashed #eab308;
-            color: #854d0e;
-            font-size: 13px;
+            background: #fafafa;
+            border: 1px solid #eef0f4;
+            color: #6b7280;
+            font-size: 12.5px;
             text-align: center;
-            padding: 8px 16px;
+            padding: 7px 14px;
             border-radius: 6px;
         }
 
         .typing-indicator {
             display: flex;
-            gap: 4px;
-            padding: 12px 16px;
-            background: #f3f4f6;
+            gap: 3px;
+            padding: 10px 14px;
+            background: #f5f5f7;
             border-radius: 8px;
             border-top-left-radius: 2px;
             width: fit-content;
         }
 
         .typing-dot {
-            width: 8px;
-            height: 8px;
+            width: 6px;
+            height: 6px;
             border-radius: 50%;
-            background: #3b82f6;
+            background: #9ca3af;
             animation: typingBounce 1.4s infinite ease-in-out;
         }
 
@@ -602,114 +606,117 @@
 
         @keyframes typingBounce {
             0%, 80%, 100% { transform: translateY(0); }
-            40% { transform: translateY(-6px); }
+            40% { transform: translateY(-4px); }
         }
 
         .chat-input-area {
-            padding: 16px 20px;
-            border-top: 1px solid #e5e7eb;
+            padding: 14px 18px;
+            border-top: 1px solid #eef0f4;
             background: #fafafa;
         }
 
         .input-wrapper {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             align-items: flex-end;
         }
 
         .chat-input {
             flex: 1;
-            background: #fff;
-            border: 1px solid #d1d5db;
-            border-radius: 6px;
-            padding: 12px 16px;
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 10px 14px;
             color: #1f2937;
-            font-size: 14px;
+            font-size: 13.5px;
             font-family: inherit;
             resize: none;
-            min-height: 44px;
+            min-height: 40px;
             max-height: 120px;
-            transition: border-color 0.2s ease;
+            transition: border-color 0.15s ease;
         }
 
         .chat-input:focus {
             outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            border-color: #d1d5db;
+            box-shadow: none;
         }
 
         .send-btn {
-            width: 44px;
-            height: 44px;
-            border-radius: 6px;
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            background: #111827;
             border: none;
             color: white;
-            font-size: 18px;
+            font-size: 16px;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.15s ease;
             display: flex;
             align-items: center;
             justify-content: center;
         }
 
         .send-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+            background: #374151;
+            transform: none;
+            box-shadow: none;
         }
 
         /* AI 侧边面板 */
         .ai-sidebar {
             display: flex;
             flex-direction: column;
-            gap: 14px;
+            gap: 12px;
         }
 
         .model-info {
-            background: #fff;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 18px;
+            background: #ffffff;
+            border: 1px solid #eef0f4;
+            border-radius: 10px;
+            padding: 16px;
         }
 
         .model-name {
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 600;
-            color: #2563eb;
-            margin-bottom: 6px;
+            color: #111827;
+            margin-bottom: 4px;
         }
 
         .model-desc {
-            font-size: 13px;
-            color: #6b7280;
+            font-size: 12.5px;
+            color: #9ca3af;
             line-height: 1.5;
         }
 
         .quick-actions {
-            background: #fff;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 18px;
+            background: #ffffff;
+            border: 1px solid #eef0f4;
+            border-radius: 10px;
+            padding: 16px;
         }
 
         .section-label {
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 600;
-            color: #374151;
-            margin-bottom: 12px;
+            color: #6b7280;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
         }
 
         .quick-action-btn {
             width: 100%;
-            padding: 10px 14px;
-            margin-bottom: 8px;
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
+            padding: 9px 12px;
+            margin-bottom: 6px;
+            background: #fafafa;
+            border: 1px solid #f0f1f5;
             border-radius: 6px;
-            color: #374151;
-            font-size: 13px;
+            color: #4b5563;
+            font-size: 12.5px;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.15s ease;
             text-align: left;
             font-family: inherit;
         }
@@ -719,62 +726,62 @@
         }
 
         .quick-action-btn:hover {
-            background: #eff6ff;
-            border-color: #93c5fd;
-            color: #2563eb;
+            background: #f0f4ff;
+            border-color: #dbeafe;
+            color: #1d4ed8;
         }
 
         /* ===== 图表页面 ===== */
         .chart-full {
-            height: 420px;
+            height: 400px;
             width: 100%;
             margin-bottom: 20px;
         }
 
         .chart-controls {
             display: flex;
-            gap: 10px;
-            margin-bottom: 18px;
+            gap: 6px;
+            margin-bottom: 16px;
             flex-wrap: wrap;
         }
 
         .control-btn {
-            padding: 7px 18px;
-            background: #fff;
-            border: 1px solid #d1d5db;
+            padding: 6px 14px;
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
             border-radius: 6px;
-            color: #4b5563;
-            font-size: 13px;
+            color: #6b7280;
+            font-size: 12.5px;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.15s ease;
             font-family: inherit;
         }
 
         .control-btn.active,
         .control-btn:hover {
-            background: #3b82f6;
-            border-color: #3b82f6;
+            background: #111827;
+            border-color: #111827;
             color: white;
         }
 
         /* ===== 摄像头页面 ===== */
         .camera-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+            gap: 16px;
         }
 
         .camera-card {
-            background: #fff;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
+            background: #ffffff;
+            border: 1px solid #eef0f4;
+            border-radius: 10px;
             overflow: hidden;
         }
 
         .camera-viewer {
             width: 100%;
-            height: 280px;
-            background: #1f2937;
+            height: 260px;
+            background: #111827;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -784,13 +791,13 @@
 
         .camera-placeholder {
             text-align: center;
-            color: #9ca3af;
+            color: #6b7280;
         }
 
         .camera-placeholder-icon {
-            font-size: 56px;
-            margin-bottom: 12px;
-            opacity: 0.3;
+            font-size: 48px;
+            margin-bottom: 10px;
+            opacity: 0.25;
         }
 
         .camera-overlay {
@@ -798,31 +805,31 @@
             bottom: 0;
             left: 0;
             right: 0;
-            padding: 10px 14px;
-            background: linear-gradient(to top, rgba(0,0,0,0.75), transparent);
+            padding: 8px 12px;
+            background: linear-gradient(to top, rgba(0,0,0,0.6), transparent);
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
         .camera-name {
-            font-weight: 600;
-            font-size: 13px;
-            color: #fff;
+            font-weight: 500;
+            font-size: 12px;
+            color: #ffffff;
         }
 
         .camera-live-badge {
             display: flex;
             align-items: center;
-            gap: 6px;
-            font-size: 11px;
+            gap: 5px;
+            font-size: 10px;
             color: #ef4444;
             font-weight: 600;
         }
 
         .live-dot {
-            width: 8px;
-            height: 8px;
+            width: 6px;
+            height: 6px;
             border-radius: 50%;
             background: #ef4444;
             animation: livePulse 1.5s infinite;
@@ -830,41 +837,41 @@
 
         @keyframes livePulse {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
+            50% { opacity: 0.3; }
         }
 
         .camera-controls {
-            padding: 14px;
+            padding: 12px;
             display: flex;
-            gap: 8px;
+            gap: 6px;
         }
 
         .cam-btn {
             flex: 1;
-            padding: 9px;
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
+            padding: 8px;
+            background: #fafafa;
+            border: 1px solid #eef0f4;
             border-radius: 6px;
-            color: #374151;
-            font-size: 13px;
+            color: #4b5563;
+            font-size: 12.5px;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.15s ease;
             font-family: inherit;
         }
 
         .cam-btn:hover {
-            background: #eff6ff;
-            border-color: #93c5fd;
-            color: #2563eb;
+            background: #f0f4ff;
+            border-color: #dbeafe;
+            color: #1d4ed8;
         }
 
         /* ===== 地图页面 ===== */
         .map-container {
-            background: #fff;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
+            background: #ffffff;
+            border: 1px solid #eef0f4;
+            border-radius: 10px;
             overflow: hidden;
-            height: calc(100vh - 180px);
+            height: calc(100vh - 168px);
             position: relative;
         }
 
@@ -875,65 +882,65 @@
 
         .map-toolbar {
             position: absolute;
-            top: 16px;
-            left: 16px;
+            top: 14px;
+            left: 14px;
             display: flex;
-            gap: 8px;
+            gap: 6px;
             z-index: 100;
         }
 
         .map-style-btn {
-            padding: 8px 16px;
-            background: rgba(255, 255, 255, 0.9);
+            padding: 7px 14px;
+            background: rgba(255, 255, 255, 0.92);
             border: 1px solid #e5e7eb;
             border-radius: 6px;
             cursor: pointer;
-            font-size: 13px;
+            font-size: 12px;
             display: flex;
             align-items: center;
-            gap: 6px;
-            transition: all 0.2s;
+            gap: 5px;
+            transition: all 0.15s;
         }
 
         .map-style-btn:hover {
-            background: #f3f4f6;
+            background: #fafafa;
             border-color: #d1d5db;
         }
 
         .map-style-btn.active {
-            background: #3b82f6;
+            background: #111827;
             color: white;
-            border-color: #3b82f6;
+            border-color: #111827;
         }
 
         .map-panel {
             position: absolute;
-            top: 16px;
-            right: 16px;
+            top: 14px;
+            right: 14px;
             z-index: 1000;
-            background: #fff;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 16px;
+            background: #ffffff;
+            border: 1px solid #eef0f4;
+            border-radius: 10px;
+            padding: 14px;
             min-width: 200px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
         }
 
         .map-search {
             width: 100%;
-            padding: 9px 12px;
-            background: #fff;
-            border: 1px solid #d1d5db;
+            padding: 8px 10px;
+            background: #fafafa;
+            border: 1px solid #e5e7eb;
             border-radius: 6px;
             color: #1f2937;
-            font-size: 13px;
+            font-size: 12.5px;
             font-family: inherit;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
         }
 
         .map-search:focus {
             outline: none;
-            border-color: #3b82f6;
+            border-color: #d1d5db;
         }
 
         .device-map-list {
@@ -942,27 +949,27 @@
         }
 
         .device-map-item {
-            padding: 10px 12px;
+            padding: 8px 10px;
             border-radius: 6px;
             cursor: pointer;
-            transition: all 0.2s ease;
-            font-size: 13px;
-            margin-bottom: 6px;
+            transition: all 0.15s ease;
+            font-size: 12.5px;
+            margin-bottom: 4px;
             display: flex;
             align-items: center;
-            gap: 10px;
-            color: #374151;
+            gap: 8px;
+            color: #4b5563;
         }
 
         .device-map-item:hover {
-            background: #eff6ff;
+            background: #f0f4ff;
         }
 
         .device-marker-dot {
-            width: 8px;
-            height: 8px;
+            width: 6px;
+            height: 6px;
             border-radius: 50%;
-            background: #3b82f6;
+            background: #6b7280;
             flex-shrink: 0;
         }
 
@@ -970,18 +977,18 @@
         .alarm-list {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 8px;
         }
 
         .alarm-item {
             display: flex;
             align-items: center;
-            padding: 16px;
-            background: #fff;
-            border: 1px solid #e5e7eb;
+            padding: 14px;
+            background: #ffffff;
+            border: 1px solid #eef0f4;
             border-radius: 8px;
-            border-left: 4px solid #ef4444;
-            transition: all 0.2s ease;
+            border-left: 3px solid #ef4444;
+            transition: all 0.15s ease;
         }
 
         .alarm-item.warning {
@@ -989,18 +996,18 @@
         }
 
         .alarm-item:hover {
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
         }
 
         .alarm-icon-box {
-            width: 40px;
-            height: 40px;
+            width: 36px;
+            height: 36px;
             border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 20px;
-            margin-right: 14px;
+            font-size: 18px;
+            margin-right: 12px;
             background: #fef2f2;
         }
 
@@ -1014,9 +1021,9 @@
 
         .alarm-title-text {
             font-weight: 600;
-            font-size: 14px;
+            font-size: 13px;
             color: #dc2626;
-            margin-bottom: 3px;
+            margin-bottom: 2px;
         }
 
         .alarm-item.warning .alarm-title-text {
@@ -1024,56 +1031,56 @@
         }
 
         .alarm-time {
-            font-size: 12px;
+            font-size: 11.5px;
             color: #9ca3af;
         }
 
         .alarm-handle-btn {
-            padding: 7px 16px;
-            background: #ef4444;
+            padding: 6px 14px;
+            background: #111827;
             border: none;
             border-radius: 6px;
             color: white;
-            font-size: 13px;
+            font-size: 12px;
             cursor: pointer;
             font-family: inherit;
             font-weight: 500;
-            transition: all 0.2s ease;
+            transition: all 0.15s ease;
         }
 
         .alarm-item.warning .alarm-handle-btn {
-            background: #f59e0b;
+            background: #111827;
         }
 
         .alarm-handle-btn:hover {
-            filter: brightness(1.1);
+            background: #374151;
         }
 
         /* ===== 设置页面 ===== */
         .settings-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 16px;
         }
 
         .setting-group {
-            background: #fff;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 22px;
+            background: #ffffff;
+            border: 1px solid #eef0f4;
+            border-radius: 10px;
+            padding: 20px;
         }
 
         .setting-group-title {
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 600;
-            color: #1f2937;
-            margin-bottom: 18px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid #f3f4f6;
+            color: #111827;
+            margin-bottom: 16px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #f5f5f7;
         }
 
         .setting-field {
-            margin-bottom: 18px;
+            margin-bottom: 16px;
         }
 
         .setting-field:last-of-type {
@@ -1082,81 +1089,82 @@
 
         .setting-label {
             display: block;
-            font-size: 13px;
-            color: #4b5563;
-            margin-bottom: 6px;
+            font-size: 12.5px;
+            color: #6b7280;
+            margin-bottom: 5px;
             font-weight: 500;
         }
 
         .setting-input,
         .setting-select {
             width: 100%;
-            padding: 10px 14px;
-            background: #fff;
-            border: 1px solid #d1d5db;
+            padding: 9px 12px;
+            background: #fafafa;
+            border: 1px solid #e5e7eb;
             border-radius: 6px;
             color: #1f2937;
-            font-size: 14px;
+            font-size: 13px;
             font-family: inherit;
-            transition: border-color 0.2s ease;
+            transition: border-color 0.15s ease;
         }
 
         .setting-input:focus,
         .setting-select:focus {
             outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            border-color: #d1d5db;
+            box-shadow: none;
         }
 
         .toggle-switch {
             position: relative;
-            width: 48px;
-            height: 26px;
+            width: 44px;
+            height: 24px;
             background: #d1d5db;
             border: none;
-            border-radius: 13px;
+            border-radius: 12px;
             cursor: pointer;
-            transition: background 0.25s ease;
+            transition: background 0.2s ease;
         }
 
         .toggle-switch.active {
-            background: #3b82f6;
+            background: #111827;
         }
 
         .toggle-knob {
             position: absolute;
             top: 2px;
             left: 2px;
-            width: 22px;
-            height: 22px;
+            width: 20px;
+            height: 20px;
             background: #fff;
             border-radius: 50%;
-            transition: transform 0.25s ease;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+            transition: transform 0.2s ease;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
 
         .toggle-switch.active .toggle-knob {
-            transform: translateX(22px);
+            transform: translateX(20px);
         }
 
         .save-btn {
             width: 100%;
-            padding: 11px;
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            padding: 10px;
+            background: #111827;
             border: none;
             border-radius: 6px;
             color: white;
-            font-size: 14px;
-            font-weight: 600;
+            font-size: 13px;
+            font-weight: 500;
             cursor: pointer;
-            transition: all 0.25s ease;
+            transition: all 0.15s ease;
             font-family: inherit;
-            margin-top: 14px;
+            margin-top: 12px;
         }
 
         .save-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+            background: #374151;
+            transform: none;
+            box-shadow: none;
         }
 
         /* 报警弹窗 */
@@ -1167,7 +1175,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.3);
             z-index: 9999;
             align-items: center;
             justify-content: center;
@@ -1175,94 +1183,94 @@
 
         .alarm-modal.show {
             display: flex;
-            animation: fadeIn 0.2s ease;
+            animation: fadeIn 0.15s ease;
         }
 
         .alarm-modal-content {
-            background: #fff;
-            border: 2px solid #ef4444;
+            background: #ffffff;
+            border: 1px solid #eef0f4;
             border-radius: 12px;
-            padding: 28px;
-            max-width: 460px;
+            padding: 24px;
+            max-width: 420px;
             width: 90%;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
         }
 
         .alarm-modal-header {
             display: flex;
             align-items: center;
-            gap: 14px;
-            margin-bottom: 16px;
+            gap: 12px;
+            margin-bottom: 14px;
         }
 
         .alarm-modal-icon {
-            width: 48px;
-            height: 48px;
+            width: 42px;
+            height: 42px;
             border-radius: 10px;
             background: #fef2f2;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 26px;
+            font-size: 22px;
         }
 
         .alarm-modal-title {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 700;
             color: #dc2626;
         }
 
         .alarm-modal-message {
-            font-size: 14px;
+            font-size: 13.5px;
             color: #4b5563;
             line-height: 1.7;
-            margin-bottom: 20px;
+            margin-bottom: 18px;
         }
 
         .alarm-modal-actions {
             display: flex;
-            gap: 10px;
+            gap: 8px;
         }
 
         .alarm-modal-btn {
             flex: 1;
-            padding: 10px 18px;
+            padding: 9px 16px;
             border-radius: 6px;
-            font-size: 14px;
-            font-weight: 600;
+            font-size: 13px;
+            font-weight: 500;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.15s ease;
             font-family: inherit;
             border: none;
         }
 
         .alarm-modal-btn-primary {
-            background: #ef4444;
+            background: #111827;
             color: white;
         }
 
         .alarm-modal-btn-primary:hover {
-            background: #dc2626;
+            background: #374151;
         }
 
         .alarm-modal-btn-secondary {
-            background: #f3f4f6;
+            background: #f5f5f7;
             color: #4b5563;
-            border: 1px solid #d1d5db;
+            border: 1px solid #e5e7eb;
         }
 
         .alarm-modal-btn-secondary:hover {
-            background: #e5e7eb;
+            background: #eef0f4;
         }
 
         /* 滚动条 */
         ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
+            width: 5px;
+            height: 5px;
         }
 
         ::-webkit-scrollbar-track {
-            background: #f3f4f6;
+            background: transparent;
         }
 
         ::-webkit-scrollbar-thumb {
@@ -1291,7 +1299,7 @@
 
         @media (max-width: 768px) {
             .sidebar {
-                width: 70px;
+                width: 60px;
             }
             
             .logo-title,
@@ -1304,7 +1312,7 @@
             
             .nav-item {
                 justify-content: center;
-                padding: 14px;
+                padding: 12px;
             }
             
             .nav-icon {
@@ -1312,7 +1320,7 @@
             }
             
             .main-content {
-                margin-left: 70px;
+                margin-left: 60px;
             }
             
             .sensor-grid {
@@ -1648,8 +1656,8 @@
                                 <label class="setting-label">Ollama 模型</label>
                                 <input type="text" class="setting-input" value="qwen3:4b" id="ollamaModel">
                             </div>
-                            <div style="font-size:12px;color:#9ca3af;margin-bottom:12px;padding:8px;background:#eff6ff;border-radius:4px;border-left:3px solid #3b82f6;">
-                                🤖 Ollama AI 对话已启用 · 请确保本地 Ollama 服务运行在 http://localhost:11434
+                            <div style="font-size:12px;color:#9ca3af;margin-bottom:12px;padding:8px;background:#fafafa;border-radius:4px;border-left:3px solid #d1d5db;">
+                                Ollama AI 对话已启用 · 请确保本地 Ollama 服务运行在 http://localhost:11434
                             </div>
                             <button class="save-btn" onclick="saveSettings()">保存配置</button>
                         </div>
@@ -1821,7 +1829,7 @@
         function updateConnectionStatus(connected) {
             const statusEl = document.getElementById('pageDesc');
             statusEl.textContent = connected ? '● 已连接 - 实时接收数据' : '○ 未连接 - 等待数据...';
-            statusEl.style.color = connected ? '#10b981' : '#9ca3af';
+            statusEl.style.color = connected ? '#16a34a' : '#9ca3af';
 
             ['tempStatus','humidityStatus','pressureStatus','vibrationStatus'].forEach(id => {
                 const el = document.getElementById(id);
@@ -1855,8 +1863,8 @@
             } else {
                 statusEl.textContent = '正常范围';
                 cardEl.className = 'sensor-status';
-                cardEl.style.background = '#ecfdf5';
-                cardEl.style.color = '#059669';
+                cardEl.style.background = '#f0fdf4';
+                cardEl.style.color = '#16a34a';
                 cardEl.innerHTML = '<span class="status-dot"></span>正常范围';
             }
         }
