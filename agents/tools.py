@@ -40,22 +40,14 @@ def _get_config():
 # ==================== 工具函数 ====================
 
 def query_current_sensor() -> Dict[str, Any]:
-    """查询最新的传感器实时数据，返回温度、湿度、气压、振动等读数及设备信息。"""
+    """查询最新 Raspberry Pi 实时数据；未接收到真实数据时明确返回不可用。"""
     try:
-        from api_server import sensor_reader, latest_pi_sensor_data
-        if latest_pi_sensor_data:
+        from api_server import latest_pi_sensor_data
+        if latest_pi_sensor_data.get("timestamp"):
             return {"source": "raspberry-live", **latest_pi_sensor_data}
-        data = sensor_reader.read()
-        return {
-            "source": "simulated",
-            "temperature": data.temperature,
-            "humidity": data.humidity,
-            "pressure": data.pressure,
-            "vibration": data.vibration,
-            "timestamp": datetime.now().isoformat(),
-        }
-    except Exception as e:
-        return {"error": str(e)}
+        return {"source": "unavailable", "error": "暂无 Raspberry Pi 真实传感器数据"}
+    except Exception as exc:
+        return {"source": "unavailable", "error": str(exc)}
 
 
 def query_sensor_history(period: str = "hour", device_id: str = "") -> Dict[str, Any]:
@@ -265,6 +257,17 @@ def analyze_sensor_trend(period: str = "day") -> Dict[str, Any]:
     }
 
 
+def predict_device_trend(device_id: str, metric: str = "temperature", horizon: int = 10) -> Dict[str, Any]:
+    """调用已部署模型基于真实 Raspberry Pi 历史记录进行趋势预测。"""
+    from prediction import PredictionService
+    return PredictionService().predict(device_id, metric, horizon)
+
+
+def analyze_device_risk(device_id: str) -> Dict[str, Any]:
+    """综合真实当前状态、历史异常及预测结果，计算可解释风险等级。"""
+    from api_server import _risk_analysis
+    return _risk_analysis(device_id)
+
 # ==================== 工具注册表 ====================
 
 TOOL_REGISTRY: Dict[str, Callable] = {}
@@ -284,6 +287,8 @@ def register_all_tools():
         "search_web": search_web,
         "get_threshold_config": get_threshold_config,
         "analyze_sensor_trend": analyze_sensor_trend,
+        "predict_device_trend": predict_device_trend,
+        "analyze_device_risk": analyze_device_risk,
     }
     TOOL_REGISTRY.clear()
     TOOL_REGISTRY.update(new_tools)
@@ -302,6 +307,8 @@ def get_tools_for_agent(agent_name: str) -> Dict[str, Callable]:
         "alarm":   ["query_recent_alerts", "query_anomaly_data", "get_threshold_config",
                      "query_current_sensor"],
         "device":  ["query_device_list", "query_device_status", "query_current_sensor"],
+        "prediction": ["query_sensor_history", "predict_device_trend"],
+        "risk": ["query_current_sensor", "query_recent_alerts", "analyze_device_risk"],
     }
     tool_names = agent_tools.get(agent_name, list(TOOL_REGISTRY.keys()))
     return {name: TOOL_REGISTRY[name] for name in tool_names if name in TOOL_REGISTRY}
@@ -360,4 +367,13 @@ TOOL_SCHEMAS = [
         "description": "分析传感器数据趋势（均值、极值、升降趋势）",
         "params": {"period": "时间范围: hour|day|week|month"},
     },
-]
+    {
+        "name": "predict_device_trend",
+        "description": "使用真实历史传感器数据调用已部署 GRU 的温度趋势预测；数据不足会明确返回",
+        "params": {"device_id": "设备ID", "metric": "当前仅 temperature", "horizon": "预测步数"},
+    },
+    {
+        "name": "analyze_device_risk",
+        "description": "综合当前状态、历史异常和预测趋势计算设备风险等级",
+        "params": {"device_id": "设备ID"},
+    },]

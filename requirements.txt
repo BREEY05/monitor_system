@@ -12,3 +12,6 @@ langchain-text-splitters>=0.2.0
 duckduckgo-search>=6.0.0
 pypdf>=4.0.0
 python-docx>=1.1.0
+
+langgraph>=0.2.0
+# torch is optional and required only when a separately trained GRU checkpoint is deployed.

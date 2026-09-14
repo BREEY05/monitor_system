@@ -55,7 +55,7 @@ def check_dependencies():
         "fastapi", "uvicorn", "pydantic", "Pillow", "requests",
         "python-multipart", "psycopg2-binary", "langchain",
         "langchain-community", "langchain-text-splitters",
-        "duckduckgo-search", "pypdf", "python-docx"
+        "duckduckgo-search", "pypdf", "python-docx", "langgraph"
     ]
     optional = ["sseclient-py"]
     print("=" * 55)

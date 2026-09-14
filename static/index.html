@@ -2708,6 +2708,7 @@
         let sensorPollTimer = null;
         let currentThresholds = { temperature: 40, humidity: 80, vibration: 0.5 };
         let currentAlarmSettings = { alarm_trigger_count: 3, alarm_window_seconds: 60 };
+        let lastLiveSensorData = null;
         let devices = [];
         let selectedDeviceId = 'device-1';
         let deviceInfo = {
@@ -2774,6 +2775,7 @@
 
         // 处理传感器数据
         function handleSensorData(data) {
+            lastLiveSensorData = data;
             if (data.temperature !== undefined) {
                 document.getElementById('tempValue').textContent = Number(data.temperature).toFixed(1);
                 document.getElementById('tempValue').style.color = '#1f2937';
@@ -4486,6 +4488,7 @@
             if (document.getElementById('anomalyCountSlider')) document.getElementById('anomalyCountSlider').value = currentAlarmSettings.alarm_trigger_count;
             if (document.getElementById('anomalyCountValue')) document.getElementById('anomalyCountValue').textContent = currentAlarmSettings.alarm_trigger_count;
             if (document.getElementById('alarmWindowSeconds')) document.getElementById('alarmWindowSeconds').value = currentAlarmSettings.alarm_window_seconds;
+            if (lastLiveSensorData) handleSensorData(lastLiveSensorData);
         }
 
         async function syncMonitorSettings(showMessage = true) {

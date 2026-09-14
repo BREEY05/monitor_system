@@ -33,7 +33,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Requ
 from fastapi.responses import JSONResponse, FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 import uvicorn
 
@@ -48,7 +48,8 @@ def get_orchestrator():
     global _orchestrator
     if _orchestrator is None:
         try:
-            from agents import create_orchestrator
+            from agents.graph import LangGraphOrchestrator
+            from agents.llm_provider import LLMProvider
             backend = "ollama"
             base_url = CONFIG.get("ollama_url", "http://localhost:11434")
             model = CONFIG.get("ollama_model", "qwen3.5:0.8b")
@@ -57,15 +58,15 @@ def get_orchestrator():
                 backend = "openai"
                 base_url = CONFIG.get("agent_api_url", base_url)
                 model = CONFIG.get("agent_api_model", model)
-            _orchestrator = create_orchestrator(
+            _orchestrator = LangGraphOrchestrator(LLMProvider(
                 backend=backend,
                 base_url=base_url,
                 model=model,
                 api_key=CONFIG.get("agent_api_key", ""),
                 temperature=0.2,
                 timeout=120,
-            )
-            logger.info(f"多 Agent 编排器初始化成功 (backend={backend}, model={model})")
+            ))
+            logger.info(f"LangGraph Agent 编排器初始化成功 (backend={backend}, model={model})")
         except Exception as e:
             logger.error(f"多 Agent 编排器初始化失败: {e}", exc_info=True)
             return None
@@ -524,6 +525,17 @@ def init_db():
             vibration REAL
         )
     ''')
+    # Non-destructive migration for installations created before multi-device data.
+    if conn.backend == "postgres":
+        c.execute("ALTER TABLE sensor_data ADD COLUMN IF NOT EXISTS device_id TEXT")
+        c.execute("ALTER TABLE sensor_data ADD COLUMN IF NOT EXISTS area TEXT")
+    else:
+        c.execute("PRAGMA table_info(sensor_data)")
+        columns = {row[1] for row in c.fetchall()}
+        if "device_id" not in columns:
+            c.execute("ALTER TABLE sensor_data ADD COLUMN device_id TEXT")
+        if "area" not in columns:
+            c.execute("ALTER TABLE sensor_data ADD COLUMN area TEXT")
 
     c.execute('''
         CREATE TABLE IF NOT EXISTS sensor_events (
@@ -604,6 +616,23 @@ def init_db():
         )
     ''')
 
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS prediction_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            device_id TEXT NOT NULL, metric TEXT NOT NULL, model_name TEXT NOT NULL,
+            prediction_time TEXT NOT NULL, horizon INTEGER NOT NULL,
+            prediction_values TEXT NOT NULL, created_at TEXT NOT NULL
+        )
+    ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS risk_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            device_id TEXT NOT NULL, risk_level TEXT NOT NULL, risk_score REAL NOT NULL,
+            anomaly_score REAL DEFAULT 0, prediction_score REAL DEFAULT 0,
+            reason TEXT, created_at TEXT NOT NULL
+        )
+    ''')
+
     if conn.backend == "postgres":
         init_cloud_tables(conn)
     
@@ -643,6 +672,13 @@ class ChatRequest(BaseModel):
     model: Optional[str] = None
     api_url: Optional[str] = None
 
+class PredictionRequest(BaseModel):
+    device_id: str = Field(min_length=1, max_length=128)
+    metric: str = "temperature"
+    horizon: int = Field(default=10, ge=1, le=120)
+
+class RiskRequest(BaseModel):
+    device_id: str = Field(min_length=1, max_length=128)
 class OllamaTestRequest(BaseModel):
     model: Optional[str] = None
     api_url: Optional[str] = None
@@ -655,45 +691,18 @@ class SkillUploadRequest(BaseModel):
     content: str
     filename: Optional[str] = None
 
-# ==================== 模拟传感器数据生成器 ====================
+# ==================== 真实传感器读取适配器 ====================
 class SensorReader:
-    def __init__(self):
-        self.start_time = time.time()
-        self.last_values = {"temperature": 22.0, "humidity": 55.0, "pressure": 1013.0, "vibration": 0.0}
-    
+    """Legacy adapter that exposes only the latest Raspberry Pi reading."""
     def read(self) -> SensorData:
-        elapsed = time.time() - self.start_time
-        
-        base_temp = 25.0
-        temp_cycle = 8.0 * math.sin(2 * math.pi * elapsed / 300)
-        temp_noise = (hash(str(int(time.time()))) % 100) / 50 - 1.0
-        temperature = round(base_temp + temp_cycle + temp_noise, 1)
-        
-        base_humid = 55.0
-        humid_cycle = 15.0 * math.sin(2 * math.pi * elapsed / 600)
-        humid_noise = (hash(str(int(time.time() + 1))) % 100) / 50 - 1.0
-        humidity = round(base_humid + humid_cycle + humid_noise, 1)
-        
-        base_pressure = 1013.0
-        pressure_drift = 2.0 * math.sin(2 * math.pi * elapsed / 1800)
-        pressure_noise = (hash(str(int(time.time() + 2))) % 50) / 25 - 1.0
-        pressure = round(base_pressure + pressure_drift + pressure_noise, 1)
-        
-        base_vibration = 0.0
-        vibration_cycle = 0.15 * abs(math.sin(2 * math.pi * elapsed / 60))
-        vibration_noise = (hash(str(int(time.time() + 3))) % 100) / 1000
-        vibration = round(base_vibration + vibration_cycle + vibration_noise, 2)
-        
-        self.last_values = {
-            "temperature": max(15.0, min(45.0, temperature)),
-            "humidity": max(30.0, min(95.0, humidity)),
-            "pressure": max(1000.0, min(1025.0, pressure)),
-            "vibration": max(0.0, vibration)
-        }
-        
-        return SensorData(**self.last_values)
+        live = globals().get("latest_pi_sensor_data", {})
+        return SensorData(
+            temperature=live.get("temperature"), humidity=live.get("humidity"),
+            pressure=live.get("pressure"), vibration=live.get("vibration"),
+            device_id=live.get("device_id"), area=live.get("area"), timestamp=live.get("timestamp"),
+        )
 
-# ==================== 模拟摄像头 ====================
+# ==================== 摄像头 ====================
 class CameraCapture:
     def __init__(self):
         self.snapshot_count = 0
@@ -1507,8 +1516,8 @@ def insert_sensor_payload(payload: RaspberrySensorPayload) -> Dict[str, Any]:
     conn = get_db_connection()
     c = conn.cursor()
     c.execute(
-        "INSERT INTO sensor_data (timestamp, temperature, humidity, pressure, vibration) VALUES (?, ?, ?, ?, ?)",
-        (timestamp, data.temperature, data.humidity, data.pressure, data.vibration)
+        "INSERT INTO sensor_data (timestamp, temperature, humidity, pressure, vibration, device_id, area) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (timestamp, data.temperature, data.humidity, data.pressure, data.vibration, device_id, area)
     )
     inserted = []
     for sensor_type, value in [
@@ -1624,6 +1633,8 @@ def persist_sensor_payload_background(payload: RaspberrySensorPayload):
 
 @app.on_event("startup")
 async def on_startup():
+    # Start scripts and Uvicorn both pass here; this keeps schemas available without reset.
+    await asyncio.to_thread(init_db)
     start_feishu_long_connection()
 
 # ==================== 路由 ====================
@@ -1633,7 +1644,7 @@ async def root():
     """访问根路径返回前端页面"""
     index_path = STATIC_DIR / "index.html"
     if index_path.exists():
-        return FileResponse(index_path)
+        return FileResponse(index_path, headers={"Cache-Control": "no-store, no-cache, must-revalidate"})
     
     return HTMLResponse("""
     <html><head><title>工业环境监控系统</title></head>
@@ -1771,6 +1782,7 @@ async def receive_raspberry_sensors(payload: RaspberrySensorPayload):
         )
     except RuntimeError:
         pass
+    asyncio.create_task(asyncio.to_thread(persist_sensor_payload_background, payload))
     return {"success": True, "mode": "live-first", "data": live}
 
 @app.get("/api/sensors/current")
@@ -1824,6 +1836,56 @@ async def get_history(range: str = "day"):
         "vibration": [r[4] for r in rows if r[4] is not None]
     }
 
+@app.post("/api/prediction/predict")
+async def predict_device_trend(request: PredictionRequest):
+    """Use only persisted Raspberry Pi history; this endpoint never fabricates a forecast."""
+    from prediction import PredictionService
+    return PredictionService().predict(request.device_id, request.metric, request.horizon)
+
+@app.get("/api/prediction/history")
+async def prediction_history(device_id: str, limit: int = 50):
+    from prediction import PredictionService
+    return {"device_id": device_id, "records": PredictionService().history(device_id, max(1, min(limit, 200)))}
+
+@app.get("/api/prediction/status/{device_id}")
+async def prediction_status(device_id: str):
+    from prediction import PredictionService
+    return PredictionService().status(device_id)
+
+def _risk_analysis(device_id: str) -> Dict[str, Any]:
+    from prediction import PredictionService
+    from risk import RiskEngine
+    current = latest_pi_sensor_data if latest_pi_sensor_data.get("device_id") == device_id else {}
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM anomaly_sensor_data WHERE device_id = ? AND timestamp >= ?", (device_id, (datetime.now() - timedelta(days=1)).isoformat()))
+        row = cursor.fetchone()
+        alerts = int(row[0]) if row else 0
+    finally:
+        conn.close()
+    prediction = PredictionService().predict(device_id)
+    result = RiskEngine().analyze(device_id, current, CONFIG.get("thresholds", {}), alerts, prediction)
+    result["current_data_available"] = bool(current)
+    result["prediction_status"] = prediction.get("status")
+    return result
+
+@app.get("/api/risk/{device_id}")
+async def get_device_risk(device_id: str):
+    return _risk_analysis(device_id)
+
+@app.post("/api/risk/analyze")
+async def analyze_device_risk(request: RiskRequest):
+    result = _risk_analysis(request.device_id)
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        components = result["components"]
+        cursor.execute("INSERT INTO risk_records (device_id, risk_level, risk_score, anomaly_score, prediction_score, reason, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)", (request.device_id, result["risk_level"], result["risk_score"], components["current"], components["prediction"], json.dumps(result["reasons"], ensure_ascii=False), datetime.now().isoformat()))
+        conn.commit()
+    finally:
+        conn.close()
+    return result
 @app.get("/api/sensor-events")
 async def get_sensor_events(limit: int = 100):
     limit = max(1, min(limit, 500))
