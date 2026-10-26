@@ -2080,6 +2080,41 @@
                 min-width: 0;
                 flex: 1;
             }
+
+        }
+
+        /* Settings remain dense, but give each configuration area a clear scan path. */
+        #page-settings { max-width: 1440px; margin: 0 auto; }
+        #page-settings .settings-grid {
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr));
+            gap: 14px;
+            align-items: start;
+        }
+        #page-settings .setting-group {
+            padding: 17px;
+            border-color: #e2e8e6;
+            background: #fff;
+        }
+        #page-settings .setting-group-title {
+            margin: 0 0 14px;
+            padding: 0 0 10px;
+            color: #253b39;
+            font-size: 14px;
+        }
+        #page-settings .setting-field { margin-bottom: 13px; }
+        #page-settings .setting-label { color: #586966; font-size: 12px; }
+        #page-settings .setting-input,
+        #page-settings .setting-select {
+            min-height: 38px;
+            padding: 8px 11px;
+            border-color: #d8e1de;
+            border-radius: 5px;
+            font-size: 13px;
+        }
+        #page-settings .setting-input:focus,
+        #page-settings .setting-select:focus {
+            border-color: #39887e;
+            box-shadow: 0 0 0 2px rgba(57, 136, 126, .12);
         }
     </style>
 </head>
@@ -2447,40 +2482,7 @@
 
                 <!-- 设备情况 -->
                 <div class="page" id="page-device-status">
-                    <div class="device-switchbar">
-                        <label for="deviceSwitchSelect">当前设备</label>
-                        <select id="deviceSwitchSelect" onchange="selectDevice(this.value)"></select>
-                    </div>
-                    <div class="device-status-layout">
-                        <div class="device-model-panel">
-                            <canvas id="deviceModelCanvas"></canvas>
-                            <div class="device-model-empty" id="deviceModelEmpty">请在系统设置中上传 .glb/.gltf 设备模型</div>
-                            <div class="device-model-loading" id="deviceModelLoading" style="display:none;">模型加载中...</div>
-                        </div>
-                        <aside class="device-info-panel">
-                            <div class="device-info-title" id="deviceNameDisplay">工业设备 #01</div>
-                            <div class="device-info-row">
-                                <div class="device-info-label">经度</div>
-                                <div class="device-info-value" id="deviceLongitudeDisplay">116.397428</div>
-                            </div>
-                            <div class="device-info-row">
-                                <div class="device-info-label">纬度</div>
-                                <div class="device-info-value" id="deviceLatitudeDisplay">39.90923</div>
-                            </div>
-                            <div class="device-info-row">
-                                <div class="device-info-label">注册日期</div>
-                                <div class="device-info-value" id="deviceRegisteredDisplay">未配置</div>
-                            </div>
-                            <div class="device-info-row">
-                                <div class="device-info-label">使用状态</div>
-                                <div class="device-info-value"><span class="device-status-badge" id="deviceStatusDisplay">运行中</span></div>
-                            </div>
-                            <div class="device-info-row">
-                                <div class="device-info-label">3D 模型</div>
-                                <div class="device-info-value" id="deviceModelFileDisplay">未上传</div>
-                            </div>
-                        </aside>
-                    </div>
+                    <iframe id="equipmentTwinFrame" src="/static/equipment.html?v=2" title="设备情况数字孪生" style="width:100%;height:calc(100vh - 150px);min-height:620px;border:0;display:block;border-radius:8px;background:#eef2f1;"></iframe>
                 </div>
 
                 <!-- 系统设置 -->
@@ -2900,7 +2902,7 @@
             } else if (pageName === 'map' && !map) {
                 initAMap();
             } else if (pageName === 'device-status') {
-                setTimeout(initDeviceViewer, 80);
+                setTimeout(postEquipmentConfig, 80);
             }
         }
 
@@ -4028,10 +4030,10 @@
                 devices = [{
                     id: legacy.id || 'device-1',
                     name: legacy.name || '工业设备 #01',
-                    longitude: legacy.longitude || '116.397428',
-                    latitude: legacy.latitude || '39.90923',
+                    longitude: legacy.longitude || '',
+                    latitude: legacy.latitude || '',
                     registered_at: legacy.registered_at || '',
-                    status: legacy.status || '运行中',
+                    status: legacy.status || '未配置',
                     model_url: legacy.model_url || '',
                     model_filename: legacy.model_filename || ''
                 }];
@@ -4044,6 +4046,17 @@
             renderDeviceSelectors();
             applyDeviceInfo(deviceInfo);
             refreshDeviceMapMarkers();
+            postEquipmentConfig();
+        }
+
+        function postEquipmentConfig() {
+            const frame = document.getElementById('equipmentTwinFrame');
+            if (!frame?.contentWindow) return;
+            frame.contentWindow.postMessage({
+                type: 'monitor-config',
+                apiUrl: document.getElementById('apiUrl').value || 'http://localhost:8000',
+                devices
+            }, '*');
         }
 
         function renderDeviceSelectors() {
