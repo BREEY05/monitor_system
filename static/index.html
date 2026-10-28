@@ -2482,7 +2482,7 @@
 
                 <!-- 设备情况 -->
                 <div class="page" id="page-device-status">
-                    <iframe id="equipmentTwinFrame" src="/static/equipment.html?v=2" title="设备情况数字孪生" style="width:100%;height:calc(100vh - 150px);min-height:620px;border:0;display:block;border-radius:8px;background:#eef2f1;"></iframe>
+                    <iframe id="equipmentTwinFrame" src="/static/equipment.html?v=4" title="设备情况数字孪生" style="width:100%;height:calc(100vh - 150px);min-height:620px;border:0;display:block;border-radius:8px;background:#f5f7fb;"></iframe>
                 </div>
 
                 <!-- 系统设置 -->
@@ -4059,6 +4059,17 @@
             }, '*');
         }
 
+        window.addEventListener('message', event => {
+            const frame = document.getElementById('equipmentTwinFrame');
+            if (event.source !== frame?.contentWindow || event.origin !== location.origin) return;
+            if (event.data?.type === 'equipment-ready') postEquipmentConfig();
+            if (event.data?.type === 'equipment-settings') {
+                if (event.data.deviceId) selectDevice(event.data.deviceId);
+                switchPage('settings');
+                document.getElementById('deviceEditSelect')?.scrollIntoView({ block: 'center' });
+            }
+        });
+
         function renderDeviceSelectors() {
             const selects = ['deviceSwitchSelect', 'deviceEditSelect', 'mapDeviceSelect']
                 .map(id => document.getElementById(id))
@@ -4131,6 +4142,7 @@
             applyDeviceInfo(deviceInfo);
             refreshDeviceMapMarkers();
             if (showAlert) setDeviceStatus('设备信息已保存，地图已同步', 'success');
+            postEquipmentConfig();
         }
 
         function applyDeviceInfo(info = {}) {

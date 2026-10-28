@@ -35,3 +35,6 @@ build/
 *.egg-info/
 .pytest_cache/
 .mypy_cache/
+.local-tools/
+output/playwright/
+.playwright-cli/
