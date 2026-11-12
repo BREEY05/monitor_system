@@ -1,0 +1,689 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#F4F5F7">
+<link rel="icon" href="data:,">
+<title>数字孪生 · PULSE</title>
+<style>
+  :root{
+    --bg:#F4F5F7; --card:#FFFFFF; --ink:#0B1220; --text:#101828; --sub:#667085; --dim:#98A2B3;
+    --line:#EAECF0; --accent:#3D5AFE; --accent-soft:#EEF2FF; --green:#12B76A; --green-soft:#ECFDF3;
+    --amber:#F79009; --amber-soft:#FFFAEB; --red:#F04438; --red-soft:#FEF3F2;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+  #stage{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+  .screen{position:fixed;inset:0;pointer-events:none}
+
+  .top{position:absolute;left:0;right:0;top:0;padding:14px 16px 0;pointer-events:none}
+  .navbar{display:flex;align-items:center;gap:10px;pointer-events:auto}
+  .icon-btn{width:40px;height:40px;flex:0 0 40px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.92);
+    display:flex;align-items:center;justify-content:center;color:var(--ink);backdrop-filter:blur(12px);
+    box-shadow:0 6px 18px rgba(16,24,40,.06);padding:0}
+  .icon-btn svg{width:18px;height:18px;display:block}
+  .titles{flex:1;text-align:center;line-height:1.2}
+  .titles h1{margin:0;font-size:17px;font-weight:650;letter-spacing:.01em}
+  .titles p{margin:3px 0 0;font-size:11px;color:var(--dim)}
+  .chips{display:flex;gap:8px;margin-top:12px;overflow-x:auto;pointer-events:auto;padding-bottom:2px;
+    scrollbar-width:none;-ms-overflow-style:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{flex:0 0 auto;height:32px;padding:0 13px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.94);
+    color:var(--sub);font-size:12px;font-weight:500;display:flex;align-items:center;gap:6px;white-space:nowrap}
+  .chip b{font-weight:650;color:var(--ink)}
+  .chip.active{background:var(--ink);border-color:var(--ink);color:#fff}
+  .chip.active b{color:#fff}
+
+  .legend{position:absolute;left:16px;bottom:20px;transition:opacity .2s ease;display:flex;gap:6px;flex-wrap:wrap;pointer-events:auto;
+    padding:7px 10px;border-radius:12px;background:rgba(255,255,255,.92);border:1px solid var(--line);
+    box-shadow:0 8px 24px rgba(16,24,40,.06);font-size:11px;color:var(--sub);backdrop-filter:blur(10px)}
+  .legend span{display:inline-flex;align-items:center;gap:5px}
+  .dot{width:6px;height:6px;border-radius:50%;display:inline-block}
+
+  .zoom{position:absolute;right:16px;bottom:20px;display:flex;flex-direction:column;gap:8px;pointer-events:auto;transition:opacity .2s ease}
+  .zoom .icon-btn{width:42px;height:42px;background:rgba(255,255,255,.95)}
+  .hint{position:absolute;left:50%;transform:translateX(-50%);bottom:66px;font-size:11px;color:var(--dim);
+    background:rgba(255,255,255,.86);border:1px solid var(--line);padding:6px 12px;border-radius:999px;white-space:nowrap;
+    transition:opacity .2s ease}
+  body.sheet-open .legend,body.sheet-open .hint,body.sheet-open .zoom{opacity:0;pointer-events:none}
+
+  .label{position:absolute;transform:translate(-50%,-100%);pointer-events:auto;cursor:pointer;
+    display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.96);
+    border:1px solid var(--line);box-shadow:0 8px 22px rgba(16,24,40,.10);font-size:11px;color:var(--ink);
+    white-space:nowrap;transition:transform .15s ease, border-color .15s ease;will-change:transform}
+  .label b{font-weight:600}
+  .label.sel{border-color:rgba(61,90,254,.55);box-shadow:0 10px 26px rgba(61,90,254,.20)}
+  .label i{font-style:normal;font-size:10px;color:var(--dim);font-weight:500}
+  .label.warn .dot{background:var(--amber)} .label.danger .dot{background:var(--red)}
+  .label.ok .dot{background:var(--green)} .label.off .dot{background:var(--dim)}
+
+  .sheet{position:fixed;left:0;right:0;bottom:0;z-index:1400;background:var(--card);border-radius:24px 24px 0 0;
+    border-top:1px solid var(--line);box-shadow:0 -18px 40px rgba(16,24,40,.12);padding:10px 18px calc(18px + env(safe-area-inset-bottom));
+    transform:translateY(105%);transition:transform .28s cubic-bezier(.2,.8,.2,1);pointer-events:auto;max-height:50vh;overflow-y:auto}
+  .sheet.open{transform:translateY(0)}
+  .grab{width:38px;height:4px;border-radius:999px;background:#E4E7EC;margin:2px auto 12px}
+  .sheet-head{display:flex;align-items:flex-start;gap:10px}
+  .sheet-head h2{margin:0;font-size:20px;letter-spacing:-.01em}
+  .sheet-head .close{margin-left:auto}
+  .meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;font-size:11px;color:var(--sub)}
+  .tag{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:8px;font-size:11px;font-weight:600}
+  .tag.ok{background:var(--green-soft);color:#027A48}
+  .tag.warn{background:var(--amber-soft);color:#B54708}
+  .tag.danger{background:var(--red-soft);color:#B42318}
+  .tag.off{background:#F2F4F7;color:#475467}
+  .tag.soft{background:var(--accent-soft);color:#3538CD}
+  .metrics{display:flex;gap:10px;margin-top:14px}
+  .metric{flex:1;min-width:0;border:1px solid var(--line);border-radius:14px;padding:10px 11px;background:#FCFCFD}
+  .metric span{display:block;font-size:10px;color:var(--dim);margin-bottom:5px}
+  .metric strong{font-size:20px;font-weight:650;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .metric em{font-style:normal;font-size:10px;color:var(--dim);margin-left:3px}
+  .metric strong.na{font-size:13px;color:var(--dim);font-weight:500}
+  .metric.hot strong{color:#D92D20}
+  .metric.warm strong{color:#B54708}
+  .rows{margin-top:12px;border-top:1px solid var(--line)}
+  .row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #F2F4F7;font-size:12px}
+  .row span{color:var(--sub);flex:1}
+  .row b{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums;text-align:right}
+  .note{margin-top:10px;font-size:11px;color:var(--dim);line-height:1.55}
+
+  .overlay{position:fixed;inset:0;background:rgba(244,245,247,.94);display:flex;align-items:center;justify-content:center;
+    padding:24px;z-index:20;backdrop-filter:blur(6px)}
+  .overlay .box{width:100%;max-width:320px;background:#fff;border:1px solid var(--line);border-radius:20px;padding:26px 22px;
+    text-align:center;box-shadow:0 18px 40px rgba(16,24,40,.10)}
+  .overlay .mark{width:48px;height:48px;border-radius:16px;background:var(--accent-soft);color:var(--accent);
+    display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:20px;font-weight:700}
+  .overlay h3{margin:0 0 8px;font-size:17px}
+  .overlay p{margin:0;font-size:13px;color:var(--sub);line-height:1.6}
+  .spinner{width:22px;height:22px;border-radius:50%;border:2px solid #E4E7EC;border-top-color:var(--accent);
+    animation:spin .8s linear infinite;margin:0 auto 14px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .hide{display:none !important}
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+
+<div class="screen">
+  <div class="top">
+    <div class="navbar">
+      <button class="icon-btn" id="backBtn" aria-label="返回">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <div class="titles">
+        <h1>数字孪生</h1>
+        <p id="subtitle">一号车间 · 加载中</p>
+      </div>
+      <button class="icon-btn" id="resetBtn2" aria-label="复位视角">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3.2-6.9"/><path d="M3 4.5V10h5.5"/></svg>
+      </button>
+    </div>
+    <div class="chips" id="chips"></div>
+  </div>
+
+  <div class="legend" id="legend">
+    <span><i class="dot" style="background:#12B76A"></i>运行</span>
+    <span><i class="dot" style="background:#F79009"></i>关注</span>
+    <span><i class="dot" style="background:#98A2B3"></i>离线</span>
+  </div>
+
+  <div class="hint">单指旋转 · 双指缩放 · 点击设备</div>
+
+  <div class="zoom">
+    <button class="icon-btn" id="zoomIn" aria-label="放大">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+    <button class="icon-btn" id="zoomOut" aria-label="缩小">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg>
+    </button>
+    <button class="icon-btn" id="resetBtn" aria-label="复位">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3.2-6.9"/><path d="M3 4.5V10h5.5"/></svg>
+    </button>
+  </div>
+</div>
+
+<div class="sheet" id="sheet">
+  <div class="grab"></div>
+  <div class="sheet-head">
+    <div>
+      <h2 id="sheetName">设备</h2>
+      <div class="meta" id="sheetMeta"></div>
+    </div>
+    <button class="icon-btn close" id="sheetClose" aria-label="关闭">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <div class="metrics" id="sheetMetrics"></div>
+  <div class="rows" id="sheetRows"></div>
+  <div class="note" id="sheetNote"></div>
+</div>
+
+<div class="overlay" id="loadingOverlay">
+  <div class="box">
+    <div class="spinner"></div>
+    <h3>正在加载车间场景</h3>
+    <p>首次加载需拉取三维模型，请稍候</p>
+  </div>
+</div>
+
+<div class="overlay hide" id="authOverlay">
+  <div class="box">
+    <div class="mark">!</div>
+    <h3>登录已过期</h3>
+    <p>请返回 PULSE App 重新登录后，再次进入数字孪生。</p>
+  </div>
+</div>
+
+<div class="overlay hide" id="errorOverlay">
+  <div class="box">
+    <div class="mark">!</div>
+    <h3>场景加载失败</h3>
+    <p id="errorText">请检查网络后重试。</p>
+  </div>
+</div>
+
+<script type="importmap">{"imports":{"three":"/static/vendor/three/build/three.module.js","three/addons/":"/static/vendor/three/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const TOKEN = new URLSearchParams(location.search).get('token') || '';
+const state = {
+  scene: null, world: null, overview: null, devices: [], groups: new Map(), labels: new Map(),
+  selected: null, filterZone: 'all', camera: null, controls: null, renderer: null,
+  raycaster: new THREE.Raycaster(), pointer: new THREE.Vector2(), frame: 0, clock: null,
+  defaultCam: { pos: new THREE.Vector3(6.5, 10.5, 11.5), target: new THREE.Vector3(0, 0.9, -0.6) }
+};
+
+const el = {
+  canvas: document.getElementById('stage'),
+  subtitle: document.getElementById('subtitle'),
+  chips: document.getElementById('chips'),
+  sheet: document.getElementById('sheet'),
+  sheetName: document.getElementById('sheetName'),
+  sheetMeta: document.getElementById('sheetMeta'),
+  sheetMetrics: document.getElementById('sheetMetrics'),
+  sheetRows: document.getElementById('sheetRows'),
+  sheetNote: document.getElementById('sheetNote'),
+  loading: document.getElementById('loadingOverlay'),
+  auth: document.getElementById('authOverlay'),
+  error: document.getElementById('errorOverlay'),
+  errorText: document.getElementById('errorText'),
+  legend: document.getElementById('legend')
+};
+
+function api(path){
+  return fetch(path, { headers: { Authorization: 'Bearer ' + TOKEN, Accept: 'application/json' } })
+    .then(function(res){
+      if (res.status === 401) { throw { code: 'auth' }; }
+      if (!res.ok) { throw { code: 'http', status: res.status }; }
+      return res.json();
+    });
+}
+
+function escapeHtml(text){
+  return String(text == null ? '' : text).replace(/[&<>"']/g, function(ch){
+    return ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[ch];
+  });
+}
+
+function stateOf(device){
+  const status = String(device.status || '');
+  if (device.online === false || status.indexOf('离线') >= 0) return { key:'off', label:'离线', cls:'off' };
+  if (status.indexOf('维护') >= 0 || status.indexOf('停用') >= 0) return { key:'warn', label:'维护中', cls:'warn' };
+  const alerts = device.alerts && device.alerts.open ? device.alerts.open : 0;
+  if (alerts > 0) return { key:'warn', label:'有报警', cls:'warn' };
+  return { key:'ok', label:'运行中', cls:'ok' };
+}
+
+function fmt(value, digits){
+  if (value === null || value === undefined || value === '') return '-';
+  const num = Number(value);
+  if (!isFinite(num)) return '-';
+  return num.toFixed(digits === undefined ? 1 : digits);
+}
+
+function initThree(){
+  const renderer = new THREE.WebGLRenderer({ canvas: el.canvas, antialias: true, alpha: false });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.shadowMap.enabled = false;
+  state.renderer = renderer;
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color('#F4F5F7');
+  scene.fog = new THREE.Fog('#F4F5F7', 26, 48);
+  state.world = scene;
+
+  const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 200);
+  camera.position.copy(state.defaultCam.pos);
+  state.camera = camera;
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.target.copy(state.defaultCam.target);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.enablePan = true;
+  controls.minDistance = 4;
+  controls.maxDistance = 26;
+  controls.maxPolarAngle = Math.PI * 0.49;
+  controls.rotateSpeed = 0.65;
+  controls.zoomSpeed = 0.8;
+  controls.update();
+  state.controls = controls;
+
+  scene.add(new THREE.HemisphereLight(0xffffff, 0xdfe7f5, 1.15));
+  const dir = new THREE.DirectionalLight(0xffffff, 1.25);
+  dir.position.set(8, 14, 6);
+  scene.add(dir);
+  const fill = new THREE.DirectionalLight(0xdfe7ff, 0.5);
+  fill.position.set(-9, 6, -7);
+  scene.add(fill);
+
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(120, 120),
+    new THREE.MeshStandardMaterial({ color: 0xF7F8FA, roughness: 1, metalness: 0 })
+  );
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = -0.002;
+  scene.add(ground);
+
+  const grid = new THREE.GridHelper(40, 40, 0xDFE4EC, 0xE9EDF4);
+  grid.position.y = 0;
+  grid.material.transparent = true;
+  grid.material.opacity = 0.85;
+  scene.add(grid);
+
+  window.addEventListener('resize', onResize);
+  renderer.domElement.addEventListener('pointerup', onPointerUp);
+  state.clock = new THREE.Clock();
+  render();
+}
+
+function onResize(){
+  const w = window.innerWidth, h = window.innerHeight;
+  state.camera.aspect = w / h;
+  state.camera.updateProjectionMatrix();
+  state.renderer.setSize(w, h);
+}
+
+function render(){
+  state.frame = requestAnimationFrame(render);
+  const dt = state.clock ? state.clock.getDelta() : 0;
+  updateLabels();
+  if (!state.selected) {
+    state.controls.update(dt);
+  } else {
+    state.controls.update(dt);
+  }
+  state.renderer.render(state.world, state.camera);
+}
+
+function makeRing(color, radius, opacity){
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(radius * 0.92, radius, 48),
+    new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: opacity, side: THREE.DoubleSide })
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 0.012;
+  return ring;
+}
+
+function placeholderModel(color){
+  const group = new THREE.Group();
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(1.1, 0.75, 0.9),
+    new THREE.MeshStandardMaterial({ color: 0xFFFFFF, roughness: 0.85, metalness: 0.05 })
+  );
+  body.position.y = 0.38;
+  body.geometry.computeBoundingBox();
+  const edge = new THREE.LineSegments(
+    new THREE.EdgesGeometry(body.geometry),
+    new THREE.LineBasicMaterial({ color: 0x98A2B3 })
+  );
+  edge.position.copy(body.position);
+  const cap = new THREE.Mesh(
+    new THREE.BoxGeometry(1.12, 0.1, 0.92),
+    new THREE.MeshStandardMaterial({ color: color, roughness: 0.7 })
+  );
+  cap.position.y = 0.8;
+  group.add(body, edge, cap);
+  return group;
+}
+
+function addLabel(device, group){
+  const status = stateOf(device);
+  const node = document.createElement('button');
+  node.className = 'label ' + status.cls;
+  node.innerHTML = '<i class="dot" style="background:' + ({ ok:'#12B76A', warn:'#F79009', danger:'#F04438', off:'#98A2B3' }[status.cls]) + '"></i>' +
+    '<b>' + escapeHtml(device.name || device.id) + '</b>';
+  node.addEventListener('click', function(ev){ ev.stopPropagation(); selectDevice(device.id); });
+  document.body.appendChild(node);
+  state.labels.set(device.id, node);
+  group.userData.label = node;
+}
+
+function updateLabels(){
+  if (!state.camera) return;
+  const width = window.innerWidth, height = window.innerHeight;
+  const items = [];
+  state.labels.forEach(function(node, id){
+    const group = state.groups.get(id);
+    if (!group || !group.visible) { node.style.display = 'none'; return; }
+    node.style.display = 'flex';
+    const vec = new THREE.Vector3();
+    group.getWorldPosition(vec);
+    const box = new THREE.Box3().setFromObject(group);
+    vec.y = box.max.y + 0.26;
+    vec.project(state.camera);
+    const rawX = (vec.x * 0.5 + 0.5) * width;
+    const rawY = (-vec.y * 0.5 + 0.5) * height;
+    const w = node.offsetWidth || 120;
+    items.push({
+      node: node,
+      x: Math.max(w / 2 + 12, Math.min(width - w / 2 - 12, rawX)),
+      y: rawY,
+      w: w,
+      z: vec.z
+    });
+  });
+  items.sort(function(a, b){ return a.y - b.y; });
+  const rowH = 34;
+  for (let i = 0; i < items.length; i += 1) {
+    const cur = items[i];
+    for (let pass = 0; pass < 6; pass += 1) {
+      let moved = false;
+      for (let j = 0; j < i; j += 1) {
+        const prev = items[j];
+        if (Math.abs(cur.x - prev.x) < (cur.w + prev.w) / 2 + 6 && Math.abs(cur.y - prev.y) < rowH) {
+          cur.y = prev.y - rowH;
+          moved = true;
+        }
+      }
+      if (!moved) break;
+    }
+    cur.y = Math.max(112, Math.min(height - 74, cur.y));
+  }
+  items.forEach(function(item){
+    item.node.style.left = Math.round(item.x) + 'px';
+    item.node.style.top = Math.round(item.y) + 'px';
+    item.node.style.zIndex = String(1000 - Math.max(0, Math.min(9, Math.round(item.z * 100))));
+  });
+}
+
+function selectDevice(id){
+  state.selected = id || null;
+  state.labels.forEach(function(node, key){ node.classList.toggle('sel', key === id); });
+  state.devices.forEach(function(device){
+    const group = state.groups.get(device.id);
+    if (!group) return;
+    const ring = group.userData.ring;
+    if (ring) ring.material.opacity = (device.id === id) ? 0.32 : 0.0;
+  });
+  const device = state.devices.find(function(item){ return item.id === id; });
+  if (!device) { closeSheet(); return; }
+  fillSheet(device);
+  el.sheet.classList.add('open');
+  document.body.classList.add('sheet-open');
+}
+
+function closeSheet(){
+  el.sheet.classList.remove('open');
+  document.body.classList.remove('sheet-open');
+  state.selected = null;
+  state.labels.forEach(function(node){ node.classList.remove('sel'); });
+  state.devices.forEach(function(device){
+    const group = state.groups.get(device.id);
+    if (group && group.userData.ring) group.userData.ring.material.opacity = 0;
+  });
+}
+
+function fillSheet(device){
+  const status = stateOf(device);
+  el.sheetName.textContent = device.name || device.id;
+  el.sheetMeta.innerHTML =
+    '<span class="tag ' + status.cls + '"><i class="dot" style="background:' + ({ ok:'#12B76A', warn:'#F79009', danger:'#F04438', off:'#98A2B3' }[status.cls]) + '"></i>' + escapeHtml(status.label) + '</span>' +
+    '<span>' + escapeHtml(device.station || '') + '</span>' +
+    '<span>' + escapeHtml(device.id || '') + '</span>';
+
+  const plant = (state.overview && state.overview.plant) || {};
+  const thresholds = (state.overview && state.overview.thresholds) || {};
+  const bound = device.sensor_bound === true;
+  const sourceText = bound ? '本机实时上报' : (plant.available ? '车间级实时数据' : '暂无实时数据');
+
+  function metricHtml(label, value, unit, digits, threshold, higherIsWorse){
+    const num = Number(value);
+    let cls = '';
+    if (isFinite(num) && threshold !== null && threshold !== undefined) {
+      if (higherIsWorse && num > Number(threshold)) cls = num > Number(threshold) * 1.05 ? 'hot' : 'warm';
+    }
+    const num2 = Number(value);
+    const unitHtml = (value === null || value === undefined || value === '' || !isFinite(num2)) ? '' : '<em>' + unit + '</em>';
+    const bodyHtml = unitHtml ? ('<strong>' + fmt(value, digits) + '</strong>' + unitHtml) : '<strong class="na">暂无</strong>';
+    return '<div class="metric ' + cls + '"><span>' + label + '</span>' + bodyHtml + '</div>';
+  }
+
+  el.sheetMetrics.innerHTML =
+    metricHtml('温度', plant.temperature, '°C', 1, thresholds.temperature, true) +
+    metricHtml('湿度', plant.humidity, '%', 1, thresholds.humidity, true) +
+    metricHtml('振动', plant.vibration, 'mm/s', 2, thresholds.vibration, true);
+
+  const risk = device.risk || {};
+  const riskLevel = String(risk.level || risk.risk_level || '');
+  const riskLabel = riskLevel === 'danger' || riskLevel === 'high' ? '高风险' : (riskLevel === 'warning' || riskLevel === 'medium' ? '需关注' : (riskLevel ? '正常' : '未评估'));
+  const openAlerts = device.alerts && device.alerts.open ? device.alerts.open : 0;
+  const latestAt = device.alerts && device.alerts.latest_at ? device.alerts.latest_at : '';
+
+  el.sheetRows.innerHTML =
+    '<div class="row"><span>数据来源</span><b>' + escapeHtml(sourceText) + '</b></div>' +
+    '<div class="row"><span>风险等级</span><b>' + escapeHtml(riskLabel) + '</b></div>' +
+    '<div class="row"><span>未处理报警</span><b>' + openAlerts + ' 条</b></div>' +
+    (latestAt ? '<div class="row"><span>最近报警</span><b>' + escapeHtml(latestAt.replace('T', ' ').slice(0, 16)) + '</b></div>' : '') +
+    (thresholds.temperature ? '<div class="row"><span>温度阈值</span><b>' + fmt(thresholds.temperature, 1) + ' °C</b></div>' : '') +
+    (thresholds.vibration ? '<div class="row"><span>振动阈值</span><b>' + fmt(thresholds.vibration, 2) + ' mm/s</b></div>' : '');
+
+  el.sheetNote.textContent = bound
+    ? '该设备已绑定实时传感器，指标为设备上报值。'
+    : '当前仅车间级传感器在线，设备指标沿用车间实时数据，接入设备传感器后将显示设备级数值。';
+}
+
+function onPointerUp(event){
+  if (event.pointerType === 'mouse' && event.button !== 0) return;
+  const rect = state.renderer.domElement.getBoundingClientRect();
+  state.pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  state.pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  state.raycaster.setFromCamera(state.pointer, state.camera);
+  const groups = [];
+  state.groups.forEach(function(group){ if (group.visible) groups.push(group); });
+  const hits = state.raycaster.intersectObjects(groups, true);
+  if (!hits.length) { closeSheet(); return; }
+  let node = hits[0].object;
+  while (node && !node.userData.deviceId) node = node.parent;
+  if (node && node.userData.deviceId) selectDevice(node.userData.deviceId);
+}
+
+function applyFilter(zone){
+  state.filterZone = zone;
+  state.devices.forEach(function(device){
+    const group = state.groups.get(device.id);
+    if (!group) return;
+    const visible = zone === 'all' || device.zone === zone;
+    group.visible = visible;
+    if (!visible && state.selected === device.id) closeSheet();
+  });
+  document.querySelectorAll('.chip').forEach(function(chip){
+    chip.classList.toggle('active', chip.dataset.zone === zone);
+  });
+}
+
+function buildChips(){
+  const zones = (state.scene && state.scene.zones) || [];
+  const total = state.devices.length;
+  let html = '<button class="chip active" data-zone="all">全部 <b>' + total + '</b></button>';
+  zones.forEach(function(zone){
+    const count = state.devices.filter(function(device){ return device.zone === zone.id; }).length;
+    if (!count) return;
+    html += '<button class="chip" data-zone="' + escapeHtml(zone.id) + '">' + escapeHtml(zone.name) + ' <b>' + count + '</b></button>';
+  });
+  el.chips.innerHTML = html;
+  el.chips.querySelectorAll('.chip').forEach(function(chip){
+    chip.addEventListener('click', function(){ applyFilter(chip.dataset.zone); });
+  });
+}
+
+function loadModels(){
+  const loader = new GLTFLoader();
+  const jobs = state.devices.map(function(device){
+    return new Promise(function(resolve){
+      const group = new THREE.Group();
+      const slot = device.position || [0, 0, 0];
+      group.position.set(Number(slot[0]) || 0, Number(slot[1]) || 0, Number(slot[2]) || 0);
+      const rot = device.rotation || [0, 0, 0];
+      group.rotation.set(Number(rot[0]) || 0, Number(rot[1]) || 0, Number(rot[2]) || 0);
+      group.userData.deviceId = device.id;
+      const status = stateOf(device);
+      const ring = makeRing(status.cls === 'warn' ? 0xF79009 : (status.cls === 'off' ? 0x98A2B3 : 0x3D5AFE), 1.35, 0);
+      group.userData.ring = ring;
+      group.add(ring);
+      state.world.add(group);
+      state.groups.set(device.id, group);
+      addLabel(device, group);
+
+      function finish(model, ok){
+        const box = new THREE.Box3().setFromObject(model);
+        const size = new THREE.Vector3(); box.getSize(size);
+        if (size.y > 6 || size.x > 8) {
+          const scale = 3 / Math.max(size.x, size.y, size.z || 1);
+          model.scale.setScalar(scale);
+        }
+        group.add(model);
+        resolve({ id: device.id, ok: ok });
+      }
+
+      if (!device.model_url) { finish(placeholderModel(0x3D5AFE), false); return; }
+      loader.load(device.model_url, function(gltf){
+        const model = gltf.scene;
+        model.traverse(function(child){
+          if (child.isMesh) {
+            child.castShadow = false;
+            child.receiveShadow = false;
+            if (child.material) {
+              child.material.metalness = Math.min(child.material.metalness == null ? 0.1 : child.material.metalness, 0.35);
+              child.material.roughness = Math.max(child.material.roughness == null ? 0.7 : child.material.roughness, 0.5);
+            }
+          }
+        });
+        finish(model, true);
+      }, undefined, function(){
+        finish(placeholderModel(0x98A2B3), false);
+      });
+    });
+  });
+  return Promise.all(jobs);
+}
+
+function fitCamera(){
+  const box = new THREE.Box3();
+  let any = false;
+  state.groups.forEach(function(group){
+    const b = new THREE.Box3().setFromObject(group);
+    if (!isFinite(b.min.x)) return;
+    any = true;
+    box.union(b);
+  });
+  if (!any) return;
+  const center = new THREE.Vector3(); box.getCenter(center);
+  const size = new THREE.Vector3(); box.getSize(size);
+  center.y = Math.max(0.6, size.y * 0.45);
+  const radius = Math.max(0.6, size.length() / 2);
+  const vFov = state.camera.fov * Math.PI / 180;
+  const hFov = 2 * Math.atan(Math.tan(vFov / 2) * state.camera.aspect);
+  const fitHeight = radius / Math.sin(vFov / 2);
+  const fitWidth = radius / Math.sin(hFov / 2);
+  const distance = Math.max(fitHeight, fitWidth) * 0.8 + 0.4;
+  const dir = new THREE.Vector3(0.5, 0.42, 1.0).normalize();
+  center.y = Math.max(0.9, center.y * 0.72);
+  state.controls.target.copy(center);
+  state.camera.position.copy(center).add(dir.multiplyScalar(distance));
+  state.camera.near = 0.1;
+  state.camera.far = 240;
+  state.camera.updateProjectionMatrix();
+  state.controls.update();
+}
+
+function resetCamera(){
+  closeSheet();
+  fitCamera();
+}
+
+function zoomBy(factor){
+  const cam = state.camera;
+  const target = state.controls.target;
+  const offset = new THREE.Vector3().subVectors(cam.position, target);
+  const length = Math.max(4, Math.min(26, offset.length() * factor));
+  offset.setLength(length);
+  cam.position.copy(target).add(offset);
+  state.controls.update();
+}
+
+function bindUi(){
+  document.getElementById('backBtn').addEventListener('click', function(){
+    if (window.history.length > 1) window.history.back();
+    else window.location.href = '/';
+  });
+  document.getElementById('sheetClose').addEventListener('click', closeSheet);
+  document.getElementById('zoomIn').addEventListener('click', function(){ zoomBy(0.82); });
+  document.getElementById('zoomOut').addEventListener('click', function(){ zoomBy(1.22); });
+  document.getElementById('resetBtn').addEventListener('click', resetCamera);
+  document.getElementById('resetBtn2').addEventListener('click', resetCamera);
+  if (window.FlutterBridge && window.FlutterBridge.postMessage) {
+    document.getElementById('backBtn').addEventListener('click', function(){
+      window.FlutterBridge.postMessage('twin:back');
+    });
+  }
+}
+
+function showError(message){
+  el.loading.classList.add('hide');
+  el.errorText.textContent = message || '请检查网络后重试。';
+  el.error.classList.remove('hide');
+}
+
+async function boot(){
+  if (!TOKEN) { el.loading.classList.add('hide'); el.auth.classList.remove('hide'); return; }
+  bindUi();
+  try {
+    const results = await Promise.all([api('/api/twin/scene'), api('/api/twin/overview')]);
+    const scenePayload = results[0] || {};
+    state.overview = results[1] || {};
+    const sceneInfo = scenePayload.scene || {};
+    state.scene = sceneInfo;
+    const devices = (scenePayload.devices || []).map(function(device){
+      const extra = (state.overview.devices || []).find(function(item){ return item.id === device.id; }) || {};
+      return Object.assign({}, device, extra, { zone: device.zone || extra.zone || '' });
+    });
+    state.devices = devices;
+    window.__pulseTwin = state;
+    el.subtitle.textContent = (sceneInfo.name || '一号车间') + ' · ' + devices.length + ' 台设备 · ' + ((state.overview.source && state.overview.source.label) || '实时');
+    initThree();
+    buildChips();
+    await loadModels();
+    fitCamera();
+    el.loading.classList.add('hide');
+  } catch (err) {
+    if (err && err.code === 'auth') {
+      el.loading.classList.add('hide');
+      el.auth.classList.remove('hide');
+      return;
+    }
+    showError('场景数据加载失败，请检查网络后重试。');
+  }
+}
+
+boot();
+</script>
+</body>
+</html>

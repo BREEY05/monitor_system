@@ -1,0 +1,25 @@
+# PULSE · systemd 单元
+# 安装：
+#   sudo cp deploy/pulse.service /etc/systemd/system/pulse.service
+#   sudo systemctl daemon-reload && sudo systemctl enable --now pulse
+[Unit]
+Description=PULSE Industrial Monitor API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pulse
+Group=pulse
+WorkingDirectory=/opt/pulse
+Environment=PYTHONUNBUFFERED=1
+Environment=PULSE_MOBILE_DATA_DIR=/opt/pulse/data
+# 只监听 127.0.0.1，公网入口只有 Caddy 的 443
+ExecStart=/opt/pulse/.venv/bin/python -m uvicorn api_server:app --host 127.0.0.1 --port 8000 --proxy-headers --forwarded-allow-ips=127.0.0.1
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

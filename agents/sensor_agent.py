@@ -8,7 +8,7 @@ SensorAgent — 传感器数据查询与分析 Agent
 import json
 import logging
 import time
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from .base import AgentResult, BaseAgent, Intent, ToolCall
 from .llm_provider import LLMMessage
@@ -39,6 +39,8 @@ class SensorAgent(BaseAgent):
 - 直接给出数据和结论，不要重复用户问题
 - 数值精确到小数点后 1 位
 - 如有异常趋势需主动提示
+- 若实时数据不可用（返回 error/unavailable），只说明「当前没有实时上报」并建议检查网关与传感器，
+  不要推断设备故障或给出停产类结论
 - 用中文回复，简洁专业"""
 
     async def execute(
@@ -83,7 +85,11 @@ class SensorAgent(BaseAgent):
         messages = self.build_messages(message, data_context)
         try:
             resp = self.llm.chat(messages)
-            content = resp.content
+            content = (resp.content or "").strip()
+            if not content:
+                # 模型返回空内容时同样走降级，避免手机端出现空气泡。
+                logger.warning("SensorAgent LLM 返回空内容，使用降级格式化")
+                content = self._format_fallback(current_data, trend_data)
         except Exception as e:
             logger.error(f"SensorAgent LLM 调用失败: {e}")
             # 降级：直接格式化数据
@@ -99,19 +105,40 @@ class SensorAgent(BaseAgent):
         )
 
     def _format_fallback(self, current: Dict, trend: Dict) -> str:
-        """LLM 不可用时的降级格式化输出。"""
+        """LLM 不可用时的降级格式化输出。
+
+        注意：无实时数据时不能只回一个标题，否则手机端会出现“只有一行加粗标题”的空回答。
+        """
+        if current.get("error"):
+            reason = str(current.get("error")).strip() or "未接收到传感器上报"
+            parts = [
+                "**当前没有可用的实时传感器数据**",
+                f"- 原因：{reason}",
+                "- 建议：检查车间网关供电与网络，确认传感器在线；恢复上报后数据会自动刷新。",
+            ]
+            if trend and "error" not in trend:
+                parts.append("\n**趋势参考**")
+                parts.extend(self._trend_lines(trend))
+            return "\n".join(parts)
+
         parts = ["**当前传感器数据**"]
-        if "error" not in current:
-            parts.append(f"- 温度: {current.get('temperature', '--')}°C")
-            parts.append(f"- 湿度: {current.get('humidity', '--')}%")
-            parts.append(f"- 气压: {current.get('pressure', '--')} hPa")
-            parts.append(f"- 振动: {current.get('vibration', '--')} mm/s")
+        parts.append(f"- 温度: {current.get('temperature', '--')}°C")
+        parts.append(f"- 湿度: {current.get('humidity', '--')}%")
+        parts.append(f"- 气压: {current.get('pressure', '--')} hPa")
+        parts.append(f"- 振动: {current.get('vibration', '--')} mm/s")
         if trend and "error" not in trend:
             parts.append("\n**趋势分析**")
-            for sensor in ("temperature", "humidity", "vibration"):
-                s = trend.get(sensor, {})
-                if s:
-                    parts.append(f"- {sensor}: 均值 {s.get('avg', '--')}, "
-                                 f"最大 {s.get('max', '--')}, 最小 {s.get('min', '--')}, "
-                                 f"趋势 {s.get('trend', '--')}")
+            parts.extend(self._trend_lines(trend))
         return "\n".join(parts)
+
+    @staticmethod
+    def _trend_lines(trend: Dict) -> List[str]:
+        labels = {"temperature": "温度", "humidity": "湿度", "vibration": "振动"}
+        lines: List[str] = []
+        for sensor, label in labels.items():
+            s = trend.get(sensor, {})
+            if s:
+                lines.append(f"- {label}: 均值 {s.get('avg', '--')}, "
+                             f"最大 {s.get('max', '--')}, 最小 {s.get('min', '--')}, "
+                             f"趋势 {s.get('trend', '--')}")
+        return lines

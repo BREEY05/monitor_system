@@ -3,80 +3,992 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>设备情况 · 数字孪生</title>
+<title>设备情况 - 数字孪生</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231d4ed8'/%3E%3Cpath d='M16 7l7 4v8l-7 4-7-4v-8z' fill='none' stroke='%23fff' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E">
 <style>
-:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;color:#263445;background:#f5f7fb;font-size:13px;--line:#dce3ec;--brand:#1d4ed8;--muted:#718096}
-*{box-sizing:border-box}body{margin:0;height:100vh;overflow:hidden}button,input{font:inherit}button{cursor:pointer;color:inherit}button:disabled{opacity:.45;cursor:default}
-.workspace{height:100%;display:grid;grid-template-columns:190px minmax(0,1fr) 228px;gap:10px;padding:0}
-.panel{border:1px solid var(--line);background:#fff;border-radius:6px;min-width:0;min-height:0}
-.left{padding:16px 12px;overflow:auto}.heading{font-size:13px;margin:0 0 14px;display:flex;align-items:center;justify-content:space-between;gap:8px}.count,.muted{color:var(--muted);font-size:11px;font-weight:400}
-.search{width:100%;height:34px;border:1px solid var(--line);border-radius:4px;padding:0 10px;outline:none;margin-bottom:14px}.search:focus{border-color:#7097e8}
-.tree-group{color:#718096;font-size:11px;padding:5px 8px 9px}
-.device-item{display:block;width:100%;text-align:left;padding:10px 9px;border:1px solid transparent;border-radius:4px;background:none;margin-bottom:5px}
-.device-item:hover{background:#f5f8fc}.device-item.active{background:#eff6ff;border-color:#d6e5ff;color:#1d4ed8}
-.device-name{display:flex;gap:7px;align-items:center;font-weight:600;font-size:12px;overflow-wrap:anywhere}.device-name:before{content:"";width:6px;height:6px;background:#94a3b8;border-radius:50%;flex:none}.device-item.active .device-name:before{background:#3974c9}
-.device-meta{display:block;font-size:10px;color:#7c8999;margin:5px 0 0 13px;line-height:1.5}.alarm .device-name:before{background:#d24b50}
-.legend{padding:14px 6px;border-top:1px solid #e8edf3;margin-top:14px;line-height:1.8;font-size:11px;color:#7a8797}
-.center{min-width:0;min-height:0;display:grid;grid-template-rows:minmax(0,1fr) 80px;gap:10px}
-.viewport{position:relative;overflow:hidden;background:#f0f4f8}
-.scene-top{position:absolute;z-index:2;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 16px;background:rgba(255,255,255,.94);border-bottom:1px solid #e3e9ef}
-.scene-top h1{font-size:15px;margin:0 0 4px;font-weight:650}.scene-top p{font-size:11px;color:#7a8797;margin:0}
-.tools{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:5px}.tools button,.action{height:30px;padding:0 10px;border:1px solid #d8e1ed;border-radius:4px;background:#fff;font-size:11px;white-space:nowrap}
-.tools button:hover,.action:hover{background:#f0f6ff;border-color:#a7c2ed}.tools button.active{background:#1d4ed8;border-color:#1d4ed8;color:#fff}
-.canvas-wrap{position:absolute;inset:73px 0 0}.canvas-wrap canvas{display:block;width:100%;height:100%;touch-action:none}
-.labels{position:absolute;inset:73px 0 0;pointer-events:none;overflow:hidden}.model-label{position:absolute;transform:translate(-50%,-100%);padding:4px 8px;border:1px solid #dce3ec;border-radius:3px;background:#fffffff0;color:#4d6075;font-size:10px;white-space:nowrap}.model-label.active{border-color:#83aceb;color:#1d4ed8}.model-label.alarm{border-color:#d24b50;color:#ba3f44}
-.scene-bottom{position:absolute;bottom:12px;left:14px;z-index:2;font-size:10px;color:#7b8998;background:#ffffffcf;padding:5px 8px;border-radius:3px;max-width:calc(100% - 115px)}
-.axis{position:absolute;right:12px;bottom:12px;width:80px;height:80px;background:#ffffffdf;border:1px solid var(--line);border-radius:5px;padding:4px;z-index:2}.axis canvas{display:block;width:70px;height:57px}.axis small{display:block;text-align:center;color:#8593a4;font:9px Consolas,monospace}
-.scene-error{position:absolute;inset:100px 24px;display:grid;place-content:center;color:#7a8797;text-align:center;line-height:2}
-.overview{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;gap:14px}.overview strong{display:block;font-size:13px;margin-bottom:5px}.overview p{margin:0;font-size:11px;color:#7a8797}.overview .state{color:#77869a;font-size:11px}
-.right{display:flex;flex-direction:column;gap:10px;min-height:0;overflow:auto}.card{padding:16px 14px}.part-name{font-size:15px;font-weight:650;margin:0 0 16px;overflow-wrap:anywhere}.data-row{display:grid;grid-template-columns:60px minmax(0,1fr);gap:10px;margin:11px 0;font-size:11px;color:#7b8795}.data-row b{font-weight:400;color:#405268;overflow-wrap:anywhere}
-.model-state{color:#255d9b;background:#eff6ff;padding:8px 10px;border-radius:4px;font-size:11px;margin:14px 0;line-height:1.7}.model-state.fallback{color:#8a672e;background:#faf6eb}
-.buttons{display:grid;grid-template-columns:1fr 1fr;gap:6px}.buttons button{padding:0 7px}.buttons .primary{background:#1d4ed8;color:#fff;border-color:#1d4ed8}
-.empty{font-size:11px;color:#8290a1;line-height:1.9;padding:12px 0}.metrics{display:grid;gap:9px}.metric{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:#758497}.metric b{font-weight:500;color:#63758a}.card h2{font-size:13px;margin:0 0 12px}.source-note{font-size:10px;color:#93a0af;line-height:1.8;margin:12px 0 0;border-top:1px solid #eef1f5;padding-top:10px}
-button:focus-visible{outline:2px solid #6195ed;outline-offset:2px}
-@media(max-width:1000px){.workspace{grid-template-columns:155px minmax(0,1fr)}.right{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;overflow:visible}.workspace{height:auto;min-height:100vh;grid-template-rows:550px auto}body{height:auto;overflow:auto}.center{grid-column:2;grid-row:1}.left{grid-row:1}.right .card:last-child{display:none}.scene-top{align-items:flex-start;flex-direction:column}.canvas-wrap,.labels{top:110px}}
-@media(max-width:600px){.workspace{display:flex;flex-direction:column;gap:8px}.left{padding:10px}.left .heading,.left .search,.left .legend,.tree-group{display:none}#tree{display:flex;overflow-x:auto;gap:6px}.device-item{min-width:140px;margin:0}.center{height:560px;flex:none}.right{display:grid;grid-template-columns:1fr}.scene-top{padding:12px}.overview{padding:10px}.overview .state{display:none}}
+/* ============================================================
+   数字孪生 · 设备情况  |  浅色工业控制台
+   ============================================================ */
+:root{
+  --bg:#eef2f8;
+  --panel:#ffffff;
+  --line:#dbe3ee;
+  --line-soft:#e9eef6;
+  --brand:#1d4ed8;
+  --brand-strong:#1b45c0;
+  --brand-soft:#eef4ff;
+  --brand-line:#c6d8f8;
+  --ink:#24344a;
+  --ink-2:#42556d;
+  --muted:#6b7c93;
+  --muted-2:#8b99ab;
+  --ok:#0f8a5f;
+  --ok-soft:#e8f6ef;
+  --ok-line:#c3e6d5;
+  --warn:#b7791f;
+  --warn-soft:#fbf3e2;
+  --warn-line:#efdcb4;
+  --danger:#d64545;
+  --danger-soft:#fdeeee;
+  --danger-line:#f4c8c8;
+  --radius:8px;
+  --shadow:0 1px 2px rgba(16,32,56,.05);
+  --shadow-lg:0 10px 28px rgba(16,32,56,.14);
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei","PingFang SC",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font:13px/1.45 var(--font);overflow:hidden;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+}
+h1,h2,h3,h4,p,dl,dd,dt,ul,figure{margin:0}
+dd{margin:0}
+ul{list-style:none;padding:0}
+button,input{font:inherit;color:inherit}
+button{background:none;border:0;padding:0;cursor:pointer}
+:focus-visible{outline:2px solid #5b8df0;outline-offset:2px}
+.is-hidden{display:none!important}
+
+/* ---------- 滚动条 ---------- */
+*{scrollbar-width:thin;scrollbar-color:#c9d5e4 transparent}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#cdd8e6;border-radius:999px;border:2px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:#adbdd2;background-clip:content-box}
+::-webkit-scrollbar-corner{background:transparent}
+
+/* ---------- 骨架 ---------- */
+.twin-app{
+  height:100%;min-height:0;
+  display:grid;grid-template-rows:auto minmax(0,1fr);
+  gap:10px;padding:10px 12px 12px;
+}
+.panel{
+  background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--radius);box-shadow:var(--shadow);
+  min-width:0;min-height:0;
+}
+
+/* ============================================================
+   顶部状态条
+   ============================================================ */
+.twin-top{
+  display:flex;align-items:center;gap:16px;
+  padding:8px 14px;min-height:52px;min-width:0;
+  background:linear-gradient(180deg,#ffffff 0%,#fcfdff 100%);
+  border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);position:relative;z-index:2;
+}
+.top-brand{display:flex;align-items:center;gap:9px;flex:none;min-width:0}
+.brand-mark{
+  width:30px;height:30px;flex:none;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;color:#fff;
+  background:linear-gradient(140deg,#3b6ceb 0%,#1d4ed8 60%,#1a43b6 100%);
+  box-shadow:0 2px 6px rgba(29,78,216,.28),inset 0 1px 0 rgba(255,255,255,.28);
+}
+.brand-mark svg{width:17px;height:17px}
+.brand-copy{min-width:0;overflow:hidden}
+.brand-title{
+  display:flex;align-items:center;gap:7px;
+  font-size:14px;font-weight:650;line-height:1.3;white-space:nowrap;letter-spacing:.01em;
+}
+.brand-badge{
+  font-size:9.5px;font-weight:600;letter-spacing:.05em;line-height:1.5;
+  color:var(--brand);background:var(--brand-soft);
+  border:1px solid var(--brand-line);padding:0 6px;border-radius:4px;
+}
+.brand-sub{
+  font-size:10.5px;color:var(--muted-2);letter-spacing:.02em;line-height:1.5;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+
+.kpi-strip{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:0;flex:1 1 auto;min-width:0;
+  overflow-x:auto;overflow-y:hidden;scrollbar-width:none;padding:1px 0;
+}
+.kpi-strip::-webkit-scrollbar{height:0}
+.kpi{
+  position:relative;flex:0 0 auto;min-width:0;
+  display:flex;flex-direction:column;gap:1px;padding:0 13px;
+}
+.kpi + .kpi::before{
+  content:"";position:absolute;left:0;top:3px;bottom:3px;width:1px;
+  background:linear-gradient(180deg,transparent,var(--line) 22%,var(--line) 78%,transparent);
+}
+.kpi-label{font-size:11px;color:var(--muted);white-space:nowrap;letter-spacing:.01em}
+.kpi-value{
+  display:flex;align-items:baseline;gap:3px;min-width:0;
+  font-variant-numeric:tabular-nums;line-height:1.15;
+}
+.kpi-value b{font-size:17px;font-weight:650;letter-spacing:-.015em;color:var(--ink);transition:color .2s}
+.kpi-value i{font-style:normal;font-size:11px;color:var(--muted-2);font-weight:400}
+.kpi.has-alert .kpi-value b,.kpi-value.has-alert,.kpi-value.has-alert b,#kpiAlert.has-alert{color:var(--danger)}
+.kpi.has-alert .kpi-label{color:#c05a5a}
+.kpi.has-alert .kpi-value b,.kpi-value.has-alert b{text-shadow:0 0 0 transparent}
+
+.top-actions{display:flex;align-items:center;gap:8px;flex:none;margin-left:2px}
+.live-pill{
+  display:inline-flex;align-items:center;gap:6px;flex:none;
+  height:24px;padding:0 9px;border-radius:999px;
+  font-size:10.5px;font-weight:600;letter-spacing:.01em;white-space:nowrap;
+  color:var(--muted);background:#f4f7fb;border:1px solid var(--line);
+  font-variant-numeric:tabular-nums;transition:color .2s,background .2s,border-color .2s;
+}
+.live-pill i{width:6px;height:6px;border-radius:50%;background:#9aa8b8;flex:none;position:relative}
+.live-pill.is-online{color:var(--ok);background:var(--ok-soft);border-color:var(--ok-line)}
+.live-pill.is-online i{background:var(--ok);box-shadow:0 0 0 3px rgba(15,138,95,.14);animation:livePulse 2.4s ease-out infinite}
+.live-pill.is-stale{color:var(--warn);background:var(--warn-soft);border-color:var(--warn-line)}
+.live-pill.is-stale i{background:var(--warn)}
+.live-pill.is-error{color:var(--danger);background:var(--danger-soft);border-color:var(--danger-line)}
+.live-pill.is-error i{background:var(--danger)}
+.live-pill.is-idle{color:var(--muted-2)}
+@keyframes livePulse{
+  0%{box-shadow:0 0 0 0 rgba(15,138,95,.32)}
+  70%{box-shadow:0 0 0 5px rgba(15,138,95,0)}
+  100%{box-shadow:0 0 0 0 rgba(15,138,95,0)}
+}
+.update-time{
+  font-size:10.5px;color:var(--muted-2);white-space:nowrap;
+  font-variant-numeric:tabular-nums;letter-spacing:.01em;
+}
+.refresh-btn{
+  display:inline-flex;align-items:center;gap:5px;flex:none;
+  height:30px;padding:0 11px;border-radius:6px;font-size:11.5px;
+  color:#41556e;background:#fff;border:1px solid var(--line);
+  transition:background .16s,border-color .16s,color .16s,box-shadow .16s;
+}
+.refresh-btn svg{width:13px;height:13px;flex:none}
+.refresh-btn:hover{background:var(--brand-soft);border-color:#c3d5f6;color:var(--brand)}
+.refresh-btn:active{transform:translateY(1px)}
+.refresh-btn.is-loading svg{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ============================================================
+   主体三栏
+   ============================================================ */
+.twin-main{
+  display:grid;grid-template-columns:232px minmax(0,1fr) 296px;
+  gap:10px;min-height:0;min-width:0;
+}
+
+/* ---------------- 左栏：设备列表 ---------------- */
+.sidebar{display:flex;flex-direction:column;gap:9px;padding:12px;min-height:0}
+.panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:none}
+.panel-title{font-size:12.5px;font-weight:650;letter-spacing:.02em;color:var(--ink)}
+.count-badge{
+  flex:none;font-size:10.5px;font-variant-numeric:tabular-nums;line-height:1.6;
+  color:var(--muted);background:#f2f6fb;border:1px solid var(--line-soft);
+  padding:0 7px;border-radius:999px;white-space:nowrap;
+}
+.search-wrap{position:relative;flex:none}
+.search-wrap svg{
+  position:absolute;left:9px;top:50%;transform:translateY(-50%);
+  width:13px;height:13px;color:var(--muted-2);pointer-events:none;transition:color .16s;
+}
+.search-wrap:focus-within svg{color:var(--brand)}
+#search{
+  width:100%;height:32px;padding:0 10px 0 29px;
+  font-size:11.5px;color:var(--ink);
+  background:#fbfcfe;border:1px solid var(--line);border-radius:6px;
+  transition:border-color .16s,box-shadow .16s,background .16s;
+}
+#search::placeholder{color:var(--muted-2)}
+#search::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none}
+#search:hover{border-color:#c9d6e8}
+#search:focus{
+  outline:none;background:#fff;border-color:#93b4f0;
+  box-shadow:0 0 0 3px rgba(29,78,216,.10);
+}
+.filter-chips{display:flex;flex-wrap:wrap;gap:5px;flex:none}
+.chip{
+  height:24px;padding:0 9px;border-radius:999px;font-size:10.5px;line-height:1;
+  display:inline-flex;align-items:center;justify-content:center;
+  color:var(--muted);background:#fff;border:1px solid var(--line);
+  white-space:nowrap;transition:color .15s,background .15s,border-color .15s;
+}
+.chip:hover{color:var(--ink);background:#f6f9fd;border-color:#c9d6e8}
+.chip.is-active,.chip[aria-pressed="true"]{
+  color:var(--brand);background:var(--brand-soft);border-color:var(--brand-line);font-weight:600;
+}
+.tree-group-label{
+  display:flex;align-items:center;gap:7px;flex:none;
+  font-size:10px;color:var(--muted-2);letter-spacing:.05em;white-space:nowrap;
+}
+.tree-group-label::after{content:"";flex:1 1 auto;height:1px;background:var(--line-soft)}
+.tree{
+  flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:4px;
+  overflow:auto;overscroll-behavior:contain;padding:1px 2px 1px 1px;
+}
+.device-item{
+  position:relative;display:block;width:100%;text-align:left;
+  padding:8px 9px;border:1px solid transparent;border-radius:6px;
+  background:transparent;transition:background .15s,border-color .15s,box-shadow .15s;
+}
+.device-item:hover{background:#f5f8fd;border-color:#e5edf9}
+.device-item.is-active{
+  background:var(--brand-soft);border-color:var(--brand-line);
+  box-shadow:inset 3px 0 0 var(--brand);
+}
+.device-item.is-dim{opacity:.5}
+.device-item.is-hover{background:#f5f8fd;border-color:#e5edf9}
+.device-item-head{display:flex;align-items:center;gap:7px;min-width:0}
+.device-dot{
+  width:7px;height:7px;flex:none;border-radius:50%;background:#94a3b8;
+  box-shadow:0 0 0 3px rgba(148,163,184,.14);transition:background .2s,box-shadow .2s;
+}
+.device-item:not(.is-offline):not(.is-dim) .device-dot{background:var(--ok);box-shadow:0 0 0 3px rgba(15,138,95,.13)}
+.device-item.is-alarm .device-dot{background:var(--danger);box-shadow:0 0 0 3px rgba(214,69,69,.16);animation:alarmPulse 2.2s ease-out infinite}
+.device-item.is-offline .device-dot{background:#9aa8b8;box-shadow:0 0 0 3px rgba(154,168,184,.16)}
+@keyframes alarmPulse{
+  0%{box-shadow:0 0 0 0 rgba(214,69,69,.35)}
+  70%{box-shadow:0 0 0 5px rgba(214,69,69,0)}
+  100%{box-shadow:0 0 0 0 rgba(214,69,69,0)}
+}
+.device-name{
+  flex:1 1 auto;min-width:0;font-size:12px;font-weight:600;color:var(--ink);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.005em;
+}
+.device-item.is-active .device-name{color:var(--brand)}
+.device-alarm-badge{
+  flex:none;min-width:16px;height:16px;padding:0 5px;border-radius:999px;
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:9.5px;font-weight:650;font-variant-numeric:tabular-nums;
+  color:var(--danger);background:var(--danger-soft);border:1px solid var(--danger-line);
+}
+.device-meta{
+  display:block;margin:4px 0 0 14px;font-size:10px;color:var(--muted-2);
+  font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.device-tags{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0 0 14px}
+.tag{
+  font-size:9.5px;line-height:1.6;padding:0 6px;border-radius:4px;
+  color:var(--muted);background:#f4f7fb;border:1px solid var(--line-soft);white-space:nowrap;
+}
+.device-tags .tag:first-child,.tag.is-running,.tag.tag-running{color:var(--ok);background:var(--ok-soft);border-color:var(--ok-line)}
+.device-item.is-alarm .device-tags .tag:first-child,.tag.is-alarm,.tag.tag-alarm{color:var(--danger);background:var(--danger-soft);border-color:var(--danger-line)}
+.device-item.is-offline .device-tags .tag:first-child,.tag.is-offline,.tag.tag-offline{color:#5c718b;background:#eff2f7;border-color:#dfe6ef}
+.tag.tag-muted{color:#5c718b;background:#eff2f7;border-color:#dfe6ef}
+.tag.is-model,.tag.tag-model{color:var(--brand);background:var(--brand-soft);border-color:var(--brand-line)}
+.empty-state{
+  margin:2px 0;padding:13px 10px;border:1px dashed var(--line);border-radius:6px;
+  background:#fafcff;color:var(--muted-2);font-size:10.5px;line-height:1.7;text-align:center;
+}
+#tree:empty{display:none}
+#sidebarEmpty{
+  flex:1 1 auto;display:flex;align-items:center;justify-content:center;
+  min-height:96px;margin:2px 0 0;
+}
+.sidebar-legend{
+  flex:none;margin-top:auto;padding-top:9px;border-top:1px solid var(--line-soft);
+  display:grid;grid-template-columns:1fr 1fr;gap:4px 8px;
+  font-size:10px;color:var(--muted);
+}
+.sidebar-legend span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.legend-dot{width:6px;height:6px;border-radius:50%;flex:none;background:#9aa8b8}
+.legend-dot.ok{background:var(--ok)}
+.legend-dot.alarm{background:var(--danger)}
+.legend-dot.none{background:#9aa8b8}
+.legend-dot.offline{background:#cbd5e1;box-shadow:inset 0 0 0 1px #b6c2d2}
+.sidebar-hint{
+  flex:none;font-size:9.5px;color:#97a5b6;letter-spacing:.02em;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;
+}
+
+/* ---------------- 中栏：3D 舞台 ---------------- */
+.stage{
+  position:relative;overflow:hidden;display:flex;flex-direction:column;
+  background:var(--panel);isolation:isolate;
+}
+.stage-toolbar{
+  flex:none;height:48px;display:flex;align-items:center;justify-content:space-between;
+  gap:10px;padding:0 10px 0 14px;
+  border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,#fdfefe 0%,#f8fafd 100%);
+  overflow-x:auto;overflow-y:hidden;scrollbar-width:none;position:relative;z-index:2;
+}
+.stage-toolbar::-webkit-scrollbar{height:0}
+.stage-title{min-width:0;flex:0 1 auto;padding-right:4px}
+#stageTitle{
+  font-size:13px;font-weight:650;line-height:1.35;letter-spacing:.01em;color:var(--ink);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+#stageSubtitle{
+  font-size:10.5px;color:var(--muted-2);line-height:1.4;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.stage-tools{display:flex;align-items:center;gap:4px;flex:none}
+.tool-btn{
+  height:28px;padding:0 9px;border-radius:6px;font-size:11px;line-height:1;
+  display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;
+  color:#4a5c73;background:#fff;border:1px solid var(--line);
+  transition:background .15s,border-color .15s,color .15s,box-shadow .15s;
+}
+.tool-btn:hover{background:#f5f8fd;border-color:#c9d6e8;color:var(--ink)}
+.tool-btn:active{transform:translateY(1px)}
+.tool-btn.is-active,.tool-btn[aria-pressed="true"]{
+  color:var(--brand);background:var(--brand-soft);border-color:var(--brand-line);font-weight:600;
+}
+.canvas-wrap{
+  position:absolute;inset:48px 0 0 0;overflow:hidden;
+  background:radial-gradient(130% 105% at 50% 0%,#f8fbfe 0%,#e8eef6 100%);
+}
+.canvas-wrap canvas{display:block;width:100%;height:100%;touch-action:none}
+.labels{
+  position:absolute;inset:48px 0 0 0;pointer-events:none;overflow:hidden;z-index:3;
+}
+.model-label{
+  position:absolute;transform:translate(-50%,-100%);
+  max-width:172px;padding:3px 8px;border-radius:5px;
+  font-size:10px;line-height:1.5;letter-spacing:.01em;white-space:nowrap;
+  color:#4a6076;background:rgba(255,255,255,.94);
+  border:1px solid var(--line);box-shadow:0 1px 3px rgba(16,32,56,.08);
+  pointer-events:auto;cursor:pointer;overflow:hidden;text-overflow:ellipsis;
+  transition:color .15s,border-color .15s,background .15s,box-shadow .15s;
+}
+.model-label:hover{color:var(--ink);border-color:#c3d3e8}
+.model-label.is-active{
+  color:var(--brand);border-color:#93b4f0;background:#fff;
+  box-shadow:0 2px 10px rgba(29,78,216,.18);
+}
+.model-label.is-alarm{
+  color:#b93d3d;border-color:#e9a3a3;background:#fff7f7;
+  box-shadow:0 1px 6px rgba(214,69,69,.14);
+}
+.model-label.is-alarm.is-active{border-color:#e08a8a;color:#c0392b}
+
+.device-tip{
+  position:absolute;z-index:9;pointer-events:none;
+  display:flex;flex-direction:column;gap:1px;
+  padding:6px 10px;border-radius:6px;max-width:220px;
+  background:rgba(24,36,52,.94);color:#fff;
+  border:1px solid rgba(255,255,255,.10);
+  box-shadow:0 6px 18px rgba(16,32,56,.22);
+  animation:tipIn .12s ease-out;
+}
+.device-tip strong{font-size:11.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.device-tip span{font-size:10px;color:#b9c7d8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@keyframes tipIn{from{opacity:0;transform:translateY(2px)}to{opacity:1;transform:none}}
+
+.stage-hud{
+  position:absolute;left:12px;bottom:46px;z-index:6;width:218px;
+  display:flex;flex-direction:column;gap:7px;padding:11px;
+  border-radius:8px;background:rgba(255,255,255,.97);
+  border:1px solid var(--line);box-shadow:var(--shadow-lg);
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+  animation:tipIn .16s ease-out;
+}
+.hud-head{display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0}
+.hud-status{
+  display:inline-flex;align-items:center;gap:4px;flex:none;
+  height:18px;padding:0 7px;border-radius:999px;
+  font-size:9.5px;font-weight:650;letter-spacing:.02em;
+  color:var(--ok);background:var(--ok-soft);border:1px solid var(--ok-line);
+}
+.hud-status::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor}
+.hud-status.is-danger,.hud-status.state-danger{color:var(--danger);background:var(--danger-soft);border-color:var(--danger-line)}
+.hud-status.is-offline,.hud-status.state-offline{color:#5c718b;background:#eff2f7;border-color:#dfe6ef}
+.hud-meta{
+  font-size:9.5px;color:var(--muted-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  font-variant-numeric:tabular-nums;text-align:right;
+}
+.hud-name{
+  font-size:13px;font-weight:650;line-height:1.3;color:var(--ink);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.hud-metrics{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;
+  padding:7px 0 2px;border-top:1px solid var(--line-soft);
+}
+.hud-metric{display:flex;flex-direction:column;gap:1px;min-width:0}
+.hud-metric span{font-size:9px;color:var(--muted-2);white-space:nowrap}
+.hud-metric b{
+  font-size:12.5px;font-weight:650;color:var(--ink);line-height:1.2;
+  font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.hud-metric i{font-style:normal;font-size:9px;color:var(--muted-2);font-weight:400}
+#hudOpen{width:100%;height:27px;font-size:11px}
+
+.stage-hint{
+  position:absolute;left:50%;bottom:10px;transform:translateX(-50%);z-index:4;
+  max-width:calc(100% - 210px);padding:3px 10px;border-radius:999px;
+  font-size:10px;color:#7b8ca0;letter-spacing:.02em;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;pointer-events:none;
+  background:rgba(255,255,255,.84);border:1px solid rgba(219,227,238,.9);
+  box-shadow:0 1px 2px rgba(16,32,56,.04);
+}
+.axis{
+  position:absolute;right:12px;bottom:12px;z-index:4;
+  width:80px;height:80px;padding:4px;border-radius:6px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  background:rgba(255,255,255,.9);border:1px solid var(--line);
+  box-shadow:var(--shadow);
+}
+.axis canvas{display:block;width:68px;height:55px}
+.axis small{
+  font-family:var(--mono);font-size:8px;line-height:1.2;letter-spacing:.06em;
+  color:#8a9bb0;text-align:center;white-space:nowrap;
+}
+.stage-toast{
+  position:absolute;left:50%;top:58px;transform:translateX(-50%);z-index:10;
+  max-width:78%;padding:6px 14px;border-radius:999px;
+  font-size:11.5px;color:#fff;background:rgba(24,36,52,.93);
+  box-shadow:0 8px 22px rgba(16,32,56,.22);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;pointer-events:none;
+  animation:toastIn .18s ease-out;
+}
+@keyframes toastIn{from{opacity:0;transform:translate(-50%,-4px)}to{opacity:1;transform:translate(-50%,0)}}
+.stage-loading{
+  position:absolute;inset:48px 0 0 0;z-index:8;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:11px;
+  background:rgba(244,247,251,.88);
+  -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);
+  color:var(--muted);font-size:11.5px;letter-spacing:.02em;
+}
+.spinner{
+  width:22px;height:22px;border-radius:50%;
+  border:2px solid #dbe3ee;border-top-color:var(--brand);
+  animation:spin .8s linear infinite;
+}
+.stage-error{
+  position:absolute;inset:48px 0 0 0;z-index:8;padding:24px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;
+  text-align:center;background:#f8fafc;color:var(--muted);
+}
+.stage-error strong{font-size:13px;font-weight:650;color:var(--ink-2)}
+.stage-error p{max-width:320px;font-size:11px;line-height:1.7;color:var(--muted-2)}
+
+/* ---------------- 右栏：检查器 ---------------- */
+.inspector{
+  display:flex;flex-direction:column;gap:10px;min-height:0;overflow:auto;
+  overscroll-behavior:contain;padding-right:1px;
+}
+.card{display:flex;flex-direction:column;gap:5px;padding:12px;min-width:0;flex:none;line-height:1.5}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+.card-title{font-size:12px;font-weight:650;letter-spacing:.02em;color:var(--ink);white-space:nowrap}
+.card-meta{
+  font-size:10px;color:var(--muted-2);font-variant-numeric:tabular-nums;white-space:nowrap;
+}
+.badge{
+  flex:none;font-size:9.5px;font-weight:600;line-height:1.7;padding:0 7px;border-radius:999px;
+  color:var(--muted);background:#f2f6fb;border:1px solid var(--line-soft);white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+.badge.is-alert{color:var(--danger);background:var(--danger-soft);border-color:var(--danger-line)}
+.badge.is-ok,.badge.is-live{color:var(--ok);background:var(--ok-soft);border-color:var(--ok-line)}
+.badge.is-warn{color:var(--warn);background:var(--warn-soft);border-color:var(--warn-line)}
+.badge.is-muted{color:#5c718b;background:#eff2f7;border-color:#dfe6ef}
+.part-name{
+  font-size:14px;font-weight:650;line-height:1.3;letter-spacing:.005em;color:var(--ink);
+  overflow-wrap:anywhere;
+}
+.info-rows{display:flex;flex-direction:column;gap:0}
+.info-row{
+  display:grid;grid-template-columns:58px minmax(0,1fr);align-items:center;gap:8px;
+  padding:0;border-bottom:1px dashed #eef2f7;
+}
+.info-row:last-child{border-bottom:0}
+.info-row dt{font-size:10.5px;color:var(--muted);white-space:nowrap}
+.info-row dd{
+  font-size:10.5px;color:var(--ink-2);text-align:right;font-variant-numeric:tabular-nums;
+  overflow-wrap:anywhere;min-width:0;
+}
+#modelFile{font-family:var(--mono);font-size:10px;letter-spacing:-.01em}
+.pill{
+  display:inline-flex;align-items:center;gap:4px;height:19px;padding:0 8px;border-radius:999px;
+  font-size:10px;font-weight:600;line-height:1;vertical-align:middle;
+  color:var(--muted);background:#f1f5fa;border:1px solid var(--line-soft);white-space:nowrap;
+}
+.pill::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor;flex:none}
+.pill.state-normal,.pill.is-normal{color:var(--ok);background:var(--ok-soft);border-color:var(--ok-line)}
+.pill.state-danger,.pill.is-danger,.pill.state-alert{color:var(--danger);background:var(--danger-soft);border-color:var(--danger-line)}
+.pill.state-warning,.pill.is-warning{color:var(--warn);background:var(--warn-soft);border-color:var(--warn-line)}
+.pill.state-offline,.pill.is-offline{color:#5c718b;background:#eff2f7;border-color:#dfe6ef}
+.pill.state-idle{color:var(--muted-2)}
+
+.card-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:0}
+.btn{
+  height:26px;padding:0 10px;border-radius:6px;font-size:11.5px;
+  display:inline-flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap;
+  color:#42566f;background:#fff;border:1px solid var(--line);
+  transition:background .15s,border-color .15s,color .15s,box-shadow .15s;
+}
+.btn:hover{background:#f5f8fd;border-color:#c9d6e8;color:var(--ink)}
+.btn:active{transform:translateY(1px)}
+.btn:disabled,.btn[disabled]{
+  opacity:.5;cursor:not-allowed;box-shadow:none;transform:none;
+  background:#f6f8fc;border-color:var(--line);color:var(--muted);
+}
+.btn:disabled:hover{background:#f6f8fc;border-color:var(--line);color:var(--muted)}
+.btn-primary{
+  color:#fff;background:var(--brand);border-color:var(--brand);
+  box-shadow:0 1px 2px rgba(29,78,216,.28);
+}
+.btn-primary:hover{color:#fff;background:var(--brand-strong);border-color:var(--brand-strong)}
+.btn-sm{height:27px;font-size:11px}
+
+.metrics{display:flex;flex-direction:column;gap:4px}
+.metric-row{display:flex;flex-direction:column;gap:2px;min-width:0}
+.metric-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px;min-width:0}
+.metric-label{font-size:10.5px;color:var(--muted);white-space:nowrap}
+.metric-value{display:flex;align-items:baseline;gap:3px;font-variant-numeric:tabular-nums;min-width:0}
+.metric-value b{font-size:14px;font-weight:650;letter-spacing:-.01em;color:var(--ink);transition:color .2s}
+.metric-value i{font-style:normal;font-size:9.5px;color:var(--muted-2)}
+.metric-row.is-warning .metric-value b,.metric-value.is-warning b{color:var(--warn)}
+.metric-row.is-danger .metric-value b,.metric-value.is-danger b{color:var(--danger)}
+.metric-bar{height:4px;border-radius:999px;background:#edf1f8;overflow:hidden}
+.metric-bar > span{
+  display:block;height:100%;width:0;border-radius:999px;background:var(--brand);
+  transition:width .55s cubic-bezier(.4,0,.2,1),background .3s;
+}
+.metric-bar > span.normal,.metric-bar > span.is-normal,
+.metric-row.is-normal .metric-bar > span{background:var(--ok)}
+.metric-bar > span.warning,.metric-bar > span.is-warning,
+.metric-row.is-warning .metric-bar > span{background:var(--warn)}
+.metric-bar > span.danger,.metric-bar > span.is-danger,
+.metric-row.is-danger .metric-bar > span{background:var(--danger)}
+.metric-bar > span.missing,.metric-bar > span.is-missing,.metric-bar > span.status-missing{background:#cbd5e1}
+.metric-bar > span.status-normal{background:var(--ok)}
+.metric-bar > span.status-warning{background:var(--warn)}
+.metric-bar > span.status-danger{background:var(--danger)}
+.metric-note{font-size:9.5px;color:var(--muted-2);font-variant-numeric:tabular-nums;white-space:nowrap}
+.card-foot{
+  margin-top:0;padding-top:3px;border-top:1px solid var(--line-soft);
+  font-size:9.5px;line-height:1.6;color:var(--muted-2);
+}
+.empty-state.card-empty{
+  padding:9px 10px;font-size:10.5px;background:#fbfcfe;border-style:dashed;
+}
+
+/* 风险与预测 */
+.risk-normal{--risk:#0f8a5f;--risk-bg:#e8f6ef;--risk-line:#c3e6d5}
+.risk-watch{--risk:#b7791f;--risk-bg:#fbf3e2;--risk-line:#efdcb4}
+.risk-warning{--risk:#c2410c;--risk-bg:#fdf0e8;--risk-line:#f5cdb4}
+.risk-critical{--risk:#d64545;--risk-bg:#fdeeee;--risk-line:#f4c8c8}
+.risk-badge{
+  flex:none;display:inline-flex;align-items:center;gap:4px;
+  height:19px;padding:0 8px;border-radius:999px;font-size:9.5px;font-weight:650;
+  color:var(--risk,#6b7c93);background:var(--risk-bg,#f2f6fb);border:1px solid var(--risk-line,#e3eaf4);
+  white-space:nowrap;letter-spacing:.02em;
+}
+.risk-badge::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor;flex:none}
+.risk-score{display:flex;align-items:baseline;gap:5px;min-width:0;flex-wrap:wrap}
+#riskScore{
+  font-size:26px;font-weight:700;line-height:1;letter-spacing:-.03em;
+  font-variant-numeric:tabular-nums;color:var(--risk,#24344a);
+}
+.risk-unit{font-size:10px;color:var(--muted-2);font-variant-numeric:tabular-nums}
+.risk-score-note{margin-left:auto;font-size:9.5px;color:var(--muted-2);white-space:nowrap}
+.risk-reasons{display:flex;flex-direction:column;gap:4px}
+.risk-reasons li{
+  position:relative;padding-left:12px;font-size:10.5px;line-height:1.6;color:var(--ink-2);
+  overflow-wrap:anywhere;
+}
+.risk-reasons li::before{
+  content:"";position:absolute;left:1px;top:6px;width:4px;height:4px;border-radius:50%;
+  background:var(--risk,#9aa8b8);
+}
+
+/* 最近告警 */
+.alert-list{display:flex;flex-direction:column;gap:3px;min-height:0}
+.alert-item{
+  position:relative;--level:#8aa0b8;
+  width:100%;text-align:left;
+  padding:4px 8px 4px 11px;border-radius:6px;
+  background:#fbfcfe;border:1px solid var(--line-soft);
+  cursor:pointer;transition:background .15s,border-color .15s;
+  display:flex;flex-wrap:wrap;align-items:flex-start;gap:2px 8px;min-width:0;
+}
+.alert-bar{display:none}
+.alert-main{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
+.alert-item::before{
+  content:"";position:absolute;left:0;top:4px;bottom:4px;width:3px;border-radius:0 2px 2px 0;
+  background:var(--level);
+}
+.alert-item:hover{background:#f5f9ff;border-color:#dce8f8}
+.alert-item.is-warning,.alert-item.level-warning,.alert-item.warning,.alert-item[data-level="warning"]{--level:#b7791f}
+.alert-item.is-danger,.alert-item.level-danger,.alert-item.danger,.alert-item.is-critical,.alert-item.level-critical,.alert-item.critical,.alert-item[data-level="danger"],.alert-item[data-level="critical"]{--level:#d64545}
+.alert-item.is-info,.alert-item.level-info,.alert-item.info,.alert-item[data-level="info"]{--level:#1d4ed8}
+.alert-item.high,.alert-item[data-level="high"]{--level:#c2410c}
+.alert-item .alert-time,.alert-item time{flex:none}
+.alert-item :is(strong,.alert-title,b,.alert-item-title){
+  display:block;font-size:11px;font-weight:600;line-height:1.45;color:var(--ink);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.alert-item :is(p,small,span.alert-meta,.alert-area,time,.alert-time){
+  margin:0;font-size:9.5px;line-height:1.5;color:var(--muted-2);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.alert-item :is(time,.alert-time){font-variant-numeric:tabular-nums}
+.alert-item-head{flex:1 1 100%;display:flex;align-items:baseline;justify-content:space-between;gap:8px;min-width:0}
+.link-btn{
+  align-self:flex-start;padding:1px 0;font-size:10.5px;color:var(--brand);
+  background:none;border:0;transition:color .15s;
+}
+.link-btn:hover{color:var(--brand-strong);text-decoration:underline;text-underline-offset:2px}
+
+.assembly-note{font-size:10.5px;line-height:1.7;color:var(--ink-2);overflow-wrap:anywhere}
+#assemblyInfo{font-size:10.5px;line-height:1.7;color:var(--ink-2)}
+#modelNote{
+  margin-top:1px;padding-top:6px;border-top:1px solid var(--line-soft);
+  font-size:9.5px;line-height:1.6;color:var(--muted-2);overflow-wrap:anywhere;
+}
+
+/* ============================================================
+   动态状态兜底（与 twin-scene 约定的类名 / aria 回退）
+   ============================================================ */
+.tool-btn[aria-pressed="true"]{
+  background:var(--brand-soft);border-color:var(--brand-line);color:var(--brand-strong);
+  box-shadow:0 0 0 2px rgba(29,78,216,.07);
+}
+.tool-btn:disabled,.tool-btn.is-busy,.tool-btn[aria-busy="true"]{
+  opacity:.55;cursor:not-allowed;box-shadow:none;
+}
+.stage-toast.is-error{background:#3a1f26;color:#ffe0e0;border-color:rgba(255,150,150,.22)}
+.stage-toast.is-success{background:#13372a;color:#dcf7e8;border-color:rgba(130,235,185,.22)}
+.device-item[aria-current="true"]{outline:1px solid var(--brand-line);outline-offset:-1px}
+.device-item.is-loading{opacity:.6;pointer-events:none}
+.model-label[aria-current="true"]{
+  border-color:var(--brand);box-shadow:0 0 0 2px rgba(29,78,216,.16);
+}
+
+/* ============================================================
+   响应式
+   ============================================================ */
+@media (max-width:1079px){
+  html,body{height:auto;min-height:100%}
+  body{overflow:auto}
+  .twin-app{height:auto;min-height:100vh;grid-template-rows:auto auto;padding:10px 12px 12px}
+  .twin-top{flex-wrap:wrap;gap:8px 14px;padding:9px 12px}
+  .kpi-strip{
+    order:3;flex:1 1 100%;justify-content:space-between;
+    padding-top:7px;border-top:1px solid var(--line-soft);
+    overflow-x:auto;
+  }
+  .kpi{padding:0 12px}
+  .twin-main{grid-template-columns:200px minmax(0,1fr);grid-template-rows:auto auto;gap:10px}
+  #sidebar{grid-column:1;grid-row:1;min-height:0}
+  .filter-chips{gap:4px}
+  .chip{padding:0 7px;font-size:10px}
+  #stage{grid-column:2;grid-row:1;height:520px;min-height:520px}
+  #inspector{
+    grid-column:1/-1;grid-row:2;
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:10px;overflow:visible;align-content:start;padding-right:0;
+  }
+  #inspector .card{height:100%}
+  #inspector .card:last-child{grid-column:1/-1}
+}
+
+@media (max-width:719px){
+  .twin-app{padding:8px;gap:8px}
+  .twin-top{padding:8px 10px;gap:8px}
+  .top-brand{flex:1 1 auto}
+  .brand-sub{display:none}
+  .top-actions{margin-left:auto}
+  .update-time{display:none}
+  .kpi-strip{flex-wrap:nowrap;justify-content:flex-start;gap:0;padding-bottom:1px}
+  .kpi{flex:0 0 auto;padding:0 10px}
+  .twin-main{display:flex;flex-direction:column;gap:8px}
+  #stage{order:1;height:420px;min-height:420px}
+  #sidebar{order:2}
+  #inspector{order:3;display:flex;flex-direction:column;gap:8px;grid-template-columns:minmax(0,1fr)}
+  #inspector .card{height:auto}
+  .tree{flex:none;flex-direction:row;overflow-x:auto;overflow-y:hidden;gap:6px;padding:1px 1px 2px}
+  .device-item{flex:0 0 176px;width:176px;padding:8px}
+  .device-meta{margin-left:0}
+  .device-tags{margin-left:0}
+  .sidebar-legend{margin-top:2px}
+  .sidebar-hint{display:none}
+  .stage-toolbar{height:48px;padding:0 8px 0 10px;gap:8px}
+  .stage-tools{gap:3px}
+  .tool-btn{height:26px;padding:0 7px;font-size:10.5px}
+  .stage-hint{max-width:calc(100% - 118px);left:12px;transform:none}
+  .stage-hud{width:196px;bottom:44px}
+  .axis{width:74px;height:74px;padding:3px}
+  .axis canvas{width:64px;height:52px}
+}
+
+@media (max-height:640px) and (min-width:1080px){
+  .twin-app{padding:8px 10px 10px;gap:8px}
+  .twin-top{min-height:48px;padding:6px 12px}
+  .stage-hud{width:200px;gap:5px;padding:9px}
+}
+
+/* 全屏 */
+.stage:fullscreen,
+.stage:-webkit-full-screen{
+  width:100%;height:100%;border-radius:0;border:0;box-shadow:none;background:#fff;
+}
+.stage:fullscreen .stage-toolbar,
+.stage:-webkit-full-screen .stage-toolbar{height:48px}
+@media (prefers-reduced-motion:reduce){
+  .live-pill.is-online i,.device-item.is-alarm .device-dot{animation:none}
+}
 </style>
-<style>
-.model-label{max-width:170px;overflow:hidden;text-overflow:ellipsis}
-@media(max-width:600px){.model-label{max-width:95px;white-space:normal;text-align:center;overflow-wrap:anywhere}}
-</style>
-<script type="importmap">{"imports":{"three":"/static/vendor/three/build/three.module.js","three/addons/":"/static/vendor/three/examples/jsm/"}}</script>
 </head>
 <body>
-<main class="workspace">
-<aside class="panel left">
-  <h2 class="heading">设备总览 <span class="count" id="assetCount">加载中</span></h2>
-  <input class="search" id="search" placeholder="搜索设备" aria-label="搜索设备">
-  <div class="tree-group">生产间 / 设备工位</div><div id="tree"></div>
-  <div class="legend">模型来源：设备配置优先<br>灰色标记：暂无状态数据<br>红色闪烁：服务端设备告警</div>
-</aside>
-<section class="center">
-  <div class="panel viewport" id="viewport">
-    <div class="scene-top"><div><h1 id="viewTitle">工业生产间</h1><p id="viewSubtitle">正在装配设备模型</p></div>
-      <div class="tools"><button class="active" id="plantBtn">车间总览</button><button id="frontBtn">正视</button><button id="labelsBtn" class="active">标签</button><button id="resetBtn" title="重置视角与缩放">复位</button></div>
+<main class="twin-app" id="twinApp">
+
+  <!-- ================= 顶部状态条 ================= -->
+  <header class="twin-top" role="banner">
+    <div class="top-brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2.8 20.4 7.6v8.8L12 21.2 3.6 16.4V7.6L12 2.8Z"/>
+          <path d="M3.6 7.6 12 12.4l8.4-4.8"/>
+          <path d="M12 12.4v8.8"/>
+        </svg>
+      </span>
+      <div class="brand-copy">
+        <h1 class="brand-title">设备情况 <span class="brand-badge">数字孪生</span></h1>
+        <p class="brand-sub">生产间 · 实时三维监控</p>
+      </div>
     </div>
-    <div class="canvas-wrap" id="canvasWrap"></div><div class="labels" id="labels"></div>
-    <div class="axis" aria-label="世界坐标轴"><canvas id="axisCanvas" width="140" height="114"></canvas><small>Y UP / WORLD</small></div>
+
+    <div class="kpi-strip" role="group" aria-label="车间关键指标">
+      <div class="kpi">
+        <span class="kpi-label">设备总数</span>
+        <span class="kpi-value"><b id="kpiTotal">--</b><i>台</i></span>
+      </div>
+      <div class="kpi">
+        <span class="kpi-label">运行中</span>
+        <span class="kpi-value"><b id="kpiOnline">--</b><i>台</i></span>
+      </div>
+      <div class="kpi">
+        <span class="kpi-label">告警设备</span>
+        <span class="kpi-value"><b id="kpiAlert">--</b><i>台</i></span>
+      </div>
+      <div class="kpi">
+        <span class="kpi-label">车间温度</span>
+        <span class="kpi-value"><b id="kpiTemp">--</b><i>°C</i></span>
+      </div>
+      <div class="kpi">
+        <span class="kpi-label">车间湿度</span>
+        <span class="kpi-value"><b id="kpiHumidity">--</b><i>%RH</i></span>
+      </div>
+      <div class="kpi">
+        <span class="kpi-label">车间振动</span>
+        <span class="kpi-value"><b id="kpiVibration">--</b><i>mm/s</i></span>
+      </div>
+    </div>
+
+    <div class="top-actions">
+      <span class="live-pill is-idle" id="livePill" role="status"><i aria-hidden="true"></i><span id="livePillText">连接中</span></span>
+      <span class="update-time" id="updateTime">更新 --:--:--</span>
+      <button type="button" class="refresh-btn" id="refreshBtn" title="立即刷新数据" aria-label="立即刷新数据">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M20.5 11.2a8.5 8.5 0 1 0-2.4 6.1"/>
+          <path d="M20.5 5.2v6h-6"/>
+        </svg>
+        <span>刷新</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ================= 主体 ================= -->
+  <div class="twin-main">
+
+    <!-- ---------- 左栏：设备列表 ---------- -->
+    <aside class="panel sidebar" id="sidebar" aria-label="设备列表">
+      <div class="panel-head">
+        <h2 class="panel-title">设备总览</h2>
+        <span class="count-badge" id="assetCount">加载中</span>
+      </div>
+
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true">
+          <circle cx="10.8" cy="10.8" r="6.6"/>
+          <path d="m15.7 15.7 4.5 4.5"/>
+        </svg>
+        <input type="search" id="search" placeholder="搜索设备名称 / 编号" aria-label="搜索设备名称或编号" autocomplete="off" spellcheck="false">
+      </div>
+
+      <div class="filter-chips" role="group" aria-label="按状态筛选设备">
+        <button type="button" class="chip is-active" id="filterAll" aria-pressed="true">全部</button>
+        <button type="button" class="chip" id="filterRunning" aria-pressed="false">运行</button>
+        <button type="button" class="chip" id="filterAlert" aria-pressed="false">告警</button>
+        <button type="button" class="chip" id="filterOffline" aria-pressed="false">离线</button>
+      </div>
+
+      <div class="tree-group-label">生产间 / 设备工位</div>
+      <div class="tree" id="tree" role="group" aria-label="设备工位列表"></div>
+      <p class="empty-state is-hidden" id="sidebarEmpty">没有匹配的设备</p>
+
+      <div class="sidebar-legend" aria-label="状态图例">
+        <span><i class="legend-dot ok" aria-hidden="true"></i>运行</span>
+        <span><i class="legend-dot alarm" aria-hidden="true"></i>告警</span>
+        <span><i class="legend-dot none" aria-hidden="true"></i>无数据</span>
+        <span><i class="legend-dot offline" aria-hidden="true"></i>离线</span>
+      </div>
+      <p class="sidebar-hint">单击选中 · 双击单机 · Esc 返回</p>
+    </aside>
+
+    <!-- ---------- 中栏：3D 舞台 ---------- -->
+    <section class="panel stage" id="stage" aria-label="三维设备舞台">
+      <div class="stage-toolbar">
+        <div class="stage-title">
+          <h2 id="stageTitle">车间总览</h2>
+          <p id="stageSubtitle">正在读取设备配置…</p>
+        </div>
+        <div class="stage-tools" role="toolbar" aria-label="三维视图工具">
+          <button type="button" class="tool-btn is-active" id="plantBtn" aria-pressed="true" title="返回车间总览">车间总览</button>
+          <button type="button" class="tool-btn" id="frontBtn" title="切换到正视机位">正视</button>
+          <button type="button" class="tool-btn is-active" id="labelsBtn" aria-pressed="true" title="显示或隐藏设备标签">标签</button>
+          <button type="button" class="tool-btn" id="rotateBtn" aria-pressed="false" title="开启或关闭自动旋转">自动旋转</button>
+          <button type="button" class="tool-btn" id="fullscreenBtn" title="进入或退出全屏">全屏</button>
+          <button type="button" class="tool-btn" id="snapshotBtn" title="保存当前画面截图">截图</button>
+          <button type="button" class="tool-btn" id="resetBtn" title="复原默认机位与缩放">复位</button>
+        </div>
+      </div>
+
+      <div class="canvas-wrap" id="canvasWrap" data-scene-ready="0" data-model-count="0" data-configured-count="0" data-selected-id=""></div>
+      <div class="labels" id="labels"></div>
+
+      <div class="device-tip is-hidden" id="deviceTip" role="tooltip">
+        <strong id="tipName">设备</strong>
+        <span id="tipMeta">工位 · 状态</span>
+      </div>
+
+      <div class="stage-hud is-hidden" id="stageHud">
+        <div class="hud-head">
+          <span class="hud-status" id="hudStatus">运行中</span>
+          <span class="hud-meta" id="hudMeta">工位 · 型号</span>
+        </div>
+        <h3 class="hud-name" id="hudName">未选择设备</h3>
+        <div class="hud-metrics">
+          <div class="hud-metric"><span>温度</span><b><span id="hudTemp">--</span><i> °C</i></b></div>
+          <div class="hud-metric"><span>湿度</span><b><span id="hudHumidity">--</span><i> %RH</i></b></div>
+          <div class="hud-metric"><span>振动</span><b><span id="hudVibration">--</span><i> mm/s</i></b></div>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" id="hudOpen">进入单机</button>
+      </div>
+
+      <p class="stage-hint" id="stageHint">拖拽旋转 · 滚轮缩放 · 单击选中 · 双击进入单机</p>
+
+      <div class="axis" id="axisBox" aria-label="世界坐标轴">
+        <canvas id="axisCanvas" width="140" height="114"></canvas>
+        <small>Y UP / WORLD</small>
+      </div>
+
+      <div class="stage-toast is-hidden" id="stageToast" role="status" aria-live="polite">提示</div>
+
+      <div class="stage-loading" id="stageLoading">
+        <span class="spinner" aria-hidden="true"></span>
+        <p id="stageLoadingText">正在装配三维场景…</p>
+      </div>
+
+      <div class="stage-error is-hidden" id="stageError">
+        <strong>三维场景不可用</strong>
+        <p id="stageErrorText">当前浏览器不支持 WebGL，设备列表与实时数据仍可正常使用。</p>
+      </div>
+    </section>
+
+    <!-- ---------- 右栏：检查器 ---------- -->
+    <aside class="inspector" id="inspector" aria-label="设备详情">
+
+      <!-- 1. 设备信息 -->
+      <section class="panel card">
+        <div class="card-head">
+          <h2 class="card-title">设备信息</h2>
+          <span class="card-meta" id="partIndex">--</span>
+        </div>
+        <p class="part-name" id="partName">未选择设备</p>
+        <dl class="info-rows">
+          <div class="info-row"><dt>设备编号</dt><dd id="partCode">--</dd></div>
+          <div class="info-row"><dt>对应工位</dt><dd id="stationName">--</dd></div>
+          <div class="info-row"><dt>模型文件</dt><dd id="modelFile">--</dd></div>
+          <div class="info-row"><dt>运行状态</dt><dd><span class="pill state-idle" id="partStatus">暂无数据</span></dd></div>
+          <div class="info-row"><dt>传感来源</dt><dd id="partSource">--</dd></div>
+          <div class="info-row"><dt>注册日期</dt><dd id="partRegistered">—</dd></div>
+        </dl>
+        <div class="card-actions">
+          <button type="button" class="btn btn-primary" id="openDevice">单机查看</button>
+          <button type="button" class="btn" id="openSettings">设备设置</button>
+        </div>
+      </section>
+
+      <!-- 2. 实时工况 -->
+      <section class="panel card">
+        <div class="card-head">
+          <h2 class="card-title">实时工况</h2>
+          <span class="badge" id="sensorBadge">车间共享传感</span>
+        </div>
+        <div class="metrics" id="sensorMetrics">
+          <div class="metric-row" data-metric="temperature">
+            <div class="metric-top">
+              <span class="metric-label">温度</span>
+              <span class="metric-value"><b id="metricTempValue">--</b><i>°C</i></span>
+            </div>
+            <div class="metric-bar"><span id="metricTempBar" class="normal" style="width:0%"></span></div>
+            <div class="metric-note" id="metricTempNote">阈值 --</div>
+          </div>
+          <div class="metric-row" data-metric="humidity">
+            <div class="metric-top">
+              <span class="metric-label">湿度</span>
+              <span class="metric-value"><b id="metricHumidityValue">--</b><i>%RH</i></span>
+            </div>
+            <div class="metric-bar"><span id="metricHumidityBar" class="normal" style="width:0%"></span></div>
+            <div class="metric-note" id="metricHumidityNote">阈值 --</div>
+          </div>
+          <div class="metric-row" data-metric="vibration">
+            <div class="metric-top">
+              <span class="metric-label">振动</span>
+              <span class="metric-value"><b id="metricVibrationValue">--</b><i>mm/s</i></span>
+            </div>
+            <div class="metric-bar"><span id="metricVibrationBar" class="normal" style="width:0%"></span></div>
+            <div class="metric-note" id="metricVibrationNote">阈值 --</div>
+          </div>
+        </div>
+        <p class="empty-state card-empty is-hidden" id="sensorEmpty">暂无实时传感数据</p>
+        <p class="card-foot" id="sensorUpdated">更新于 --</p>
+      </section>
+
+      <!-- 3. 最近告警 -->
+      <section class="panel card">
+        <div class="card-head">
+          <h2 class="card-title">最近告警</h2>
+          <span class="badge" id="alertCount">未处理 0</span>
+        </div>
+        <ul class="alert-list" id="alertList"></ul>
+        <p class="empty-state card-empty" id="alertEmpty">当前没有未处理告警</p>
+        <button type="button" class="link-btn" id="alertMore">查看全部告警</button>
+      </section>
+
+      <!-- 4. 风险与预测 -->
+      <section class="panel card" id="riskCard">
+        <div class="card-head">
+          <h2 class="card-title">风险与预测</h2>
+          <span class="risk-badge" id="riskBadge">正常</span>
+        </div>
+        <div class="risk-score">
+          <b id="riskScore">--</b>
+          <span class="risk-unit">/100</span>
+          <span class="risk-score-note">综合风险分</span>
+        </div>
+        <ul class="risk-reasons" id="riskReasons">
+          <li>暂无风险说明</li>
+        </ul>
+        <p class="card-foot" id="riskNote">暂无实时数据，仅基于近期告警</p>
+      </section>
+
+      <!-- 5. 模型装配 -->
+      <section class="panel card">
+        <div class="card-head">
+          <h2 class="card-title">模型装配</h2>
+        </div>
+        <p id="assemblyInfo">正在读取设备配置…</p>
+        <p id="modelNote">模型来源：设备配置优先，缺失时使用内置外形。</p>
+      </section>
+
+    </aside>
   </div>
-  <div class="panel overview"><div><strong id="overviewTitle">设备装配</strong><p id="modelSummary">正在读取设备配置</p></div><span class="state" id="serviceState">等待服务数据</span></div>
-</section>
-<aside class="right">
-  <section class="panel card"><h2 class="heading">设备信息 <span class="count" id="partIndex"></span></h2>
-    <div class="part-name" id="partName">未选择设备</div>
-    <div class="data-row"><span>设备编号</span><b id="partCode">未配置</b></div>
-    <div class="data-row"><span>对应工位</span><b id="stationName">未配置</b></div>
-    <div class="data-row"><span>模型文件</span><b id="modelFile">未配置</b></div>
-    <div class="data-row"><span>告警状态</span><b id="partStatus">暂无状态数据</b></div>
-    <div class="model-state" id="modelState">等待设备配置</div>
-    <div class="buttons"><button class="action primary" id="openDevice">单机查看</button><button class="action" id="openSettings">设备设置</button></div>
-  </section>
-  <section class="panel card"><h2>工况监测</h2><div class="empty">暂无传感器数据</div>
-    <p class="source-note">等待设备传感点绑定与真实服务数据</p>
-  </section>
-  <section class="panel card"><h2>模型装配</h2><div class="empty" id="assemblyInfo">设备模型将自动居中并落地对齐。</div></section>
-</aside>
 </main>
-<script type="module" src="/static/equipment-scene.js?v=4"></script>
+
+<script type="importmap">{"imports":{"three":"/static/vendor/three/build/three.module.js","three/addons/":"/static/vendor/three/examples/jsm/"}}</script>
+<script type="module" src="/static/equipment-scene.js?v=6"></script>
 </body>
 </html>

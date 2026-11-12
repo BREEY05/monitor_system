@@ -1,0 +1,25 @@
+name: pulse_mobile
+description: "PULSE · 工业监控移动端（M2：飞书登录 + 真实接口 + 孪生 WebView）"
+publish_to: "none"
+version: 0.2.0+2
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  material_ui: ^1.1.0
+  cupertino_icons: ^1.0.8
+  shared_preferences: ^2.5.6
+  webview_flutter: ^4.14.1
+  web_socket_channel: ^3.0.3
+  http: ^1.6.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

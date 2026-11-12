@@ -53,7 +53,7 @@ def kill_port_occupiers(port):
 def check_dependencies():
     required = [
         "fastapi", "uvicorn", "pydantic", "Pillow", "requests",
-        "python-multipart", "psycopg2-binary", "langchain",
+        "python-multipart", "PyMySQL", "langchain",
         "langchain-community", "langchain-text-splitters",
         "duckduckgo-search", "pypdf", "python-docx", "langgraph"
     ]
@@ -70,8 +70,8 @@ def check_dependencies():
                 __import__("PIL")
             elif lib.lower() == "python-multipart":
                 __import__("multipart")
-            elif lib.lower() == "psycopg2-binary":
-                __import__("psycopg2")
+            elif lib.lower() == "pymysql":
+                __import__("pymysql")
             elif lib.lower() == "langchain-community":
                 __import__("langchain_community")
             elif lib.lower() == "langchain-text-splitters":
@@ -101,6 +101,27 @@ def check_dependencies():
                 print(f"FAIL: {e}")
         print()
     print("   [OK] Dependencies check passed")
+    print()
+
+def start_local_mysql():
+    base = Path(__file__).parent / ".local-mysql" / "mysql-8.0.42-winx64" / "bin" / "mysqld.exe"
+    if not base.exists():
+        print("   [INFO] Portable MySQL not found, MySQL will fall back to SQLite if unavailable")
+        print()
+        return
+    print("   Starting portable MySQL on 127.0.0.1:3307...")
+    try:
+        script = Path(__file__).parent / "scripts" / "start_mysql.ps1"
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script)],
+            capture_output=True, text=True, timeout=90
+        )
+        output = (result.stdout or result.stderr or "").strip()
+        if output:
+            for line in output.splitlines()[-3:]:
+                print(f"   {line}")
+    except Exception as e:
+        print(f"   [WARN] Portable MySQL start failed: {e}")
     print()
 
 def check_ollama():
@@ -158,6 +179,7 @@ def main():
                 print(f"Invalid port: {arg}")
                 sys.exit(1)
     check_dependencies()
+    start_local_mysql()
     check_ollama()
     print(f"   Checking port {port}...")
     kill_port_occupiers(port)

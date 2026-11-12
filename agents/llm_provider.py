@@ -112,9 +112,18 @@ class LLMProvider:
                 "top_p": self.top_p,
             },
         }
+        # qwen3 系列默认开启 thinking，0.8b 在本机单次调用要 100s+；
+        # 工业问答不需要思维链，显式关闭（模型不支持 think 参数时回退重试）。
         r = requests.post(
-            f"{self.base_url}/api/chat", json=payload, timeout=self.timeout
+            f"{self.base_url}/api/chat",
+            json={**payload, "think": False},
+            timeout=self.timeout,
         )
+        if r.status_code >= 400 and "think" in r.text.lower():
+            logger.info("当前 Ollama 不支持 think 参数，回退为默认请求")
+            r = requests.post(
+                f"{self.base_url}/api/chat", json=payload, timeout=self.timeout
+            )
         r.raise_for_status()
         data = r.json()
         content = data.get("message", {}).get("content", "")
@@ -136,10 +145,18 @@ class LLMProvider:
         }
         r = requests.post(
             f"{self.base_url}/api/chat",
-            json=payload,
+            json={**payload, "think": False},
             stream=True,
             timeout=self.timeout,
         )
+        if r.status_code >= 400 and "think" in r.text.lower():
+            logger.info("当前 Ollama 不支持 think 参数，流式回退为默认请求")
+            r = requests.post(
+                f"{self.base_url}/api/chat",
+                json=payload,
+                stream=True,
+                timeout=self.timeout,
+            )
         r.raise_for_status()
         for line in r.iter_lines():
             if not line:

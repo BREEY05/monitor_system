@@ -7,13 +7,13 @@
     
     
     
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
-    <script async src="https://cdn.jsdelivr.net/npm/es-module-shims@1.10.0/dist/es-module-shims.min.js"></script>
+    <script src="/static/vendor/echarts/echarts.min.js?v=1"></script>
+    <script async src="/static/vendor/es-module-shims/es-module-shims.min.js?v=1"></script>
     <script type="importmap">
         {
             "imports": {
-                "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
-                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"
+                "three": "/static/vendor/three/build/three.module.js",
+                "three/addons/": "/static/vendor/three/examples/jsm/"
             }
         }
     </script>
@@ -2116,7 +2116,480 @@
             border-color: #39887e;
             box-shadow: 0 0 0 2px rgba(57, 136, 126, .12);
         }
-    </style>
+    
+        /* ===== 设置页重做：分区导航 + 两列卡片（企业级） ===== */
+        #page-settings {
+            max-width: 1440px;
+            margin: 0 auto;
+        }
+
+        .settings-shell {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .settings-nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 8px;
+            background: var(--surface, #fff);
+            border: 1px solid var(--line, #d9e0ea);
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(17, 24, 39, 0.06);
+            min-width: 0;
+            position: sticky;
+            top: 12px;
+            z-index: 6;
+        }
+
+        .settings-nav-btn {
+            flex: 0 0 auto;
+            padding: 8px 16px;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--ink-500, #6b7280);
+            font-size: 13px;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.18s, color 0.18s, border-color 0.18s;
+        }
+
+        .settings-nav-btn:hover {
+            background: var(--surface-subtle, #f5f7fb);
+            color: var(--ink-900, #111827);
+        }
+
+        .settings-nav-btn.active {
+            background: var(--brand-soft, #eff6ff);
+            border-color: rgba(29, 78, 216, 0.36);
+            color: var(--brand, #1d4ed8);
+        }
+
+        .settings-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 16px;
+            align-items: start;
+        }
+
+        .settings-col {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            min-width: 0;
+        }
+
+        .settings-card.setting-group {
+            margin: 0;
+            padding: 18px 18px 16px;
+            min-width: 0;
+        }
+
+        .settings-card-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 4px;
+            flex-wrap: wrap;
+        }
+
+        .settings-card-head .setting-group-title {
+            margin: 0;
+        }
+
+        .settings-card-desc {
+            margin: 4px 0 14px;
+            color: var(--ink-500, #6b7280);
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .settings-field-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 12px;
+        }
+
+        .settings-field-grid .setting-field {
+            min-width: 0;
+            margin: 0;
+        }
+
+        .settings-field-grid .setting-field-wide {
+            grid-column: 1 / -1;
+        }
+
+        .settings-field-grid .setting-label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--ink-700, #374151);
+        }
+
+        .settings-field-grid .setting-input,
+        .settings-field-grid .setting-select {
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .settings-field-grid .setting-input.is-invalid {
+            border-color: #dc2626;
+            box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+        }
+
+        .settings-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .settings-actions .save-btn {
+            margin: 0;
+        }
+
+        .input-error-text {
+            display: none;
+            margin-top: 6px;
+            color: #dc2626;
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        .input-error-text.show {
+            display: block;
+        }
+
+        .inline-message {
+            display: none;
+            margin-top: 12px;
+            padding: 9px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            line-height: 1.6;
+            border: 1px solid transparent;
+            word-break: break-word;
+        }
+
+        .inline-message.success {
+            display: block;
+            background: #f0fdf4;
+            border-color: #bbf7d0;
+            color: #15803d;
+        }
+
+        .inline-message.error {
+            display: block;
+            background: #fef2f2;
+            border-color: #fecaca;
+            color: #b91c1c;
+        }
+
+        .inline-message.info {
+            display: block;
+            background: var(--brand-soft, #eff6ff);
+            border-color: #bfdbfe;
+            color: var(--brand, #1d4ed8);
+        }
+
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 500;
+            line-height: 1.6;
+            background: #f3f4f6;
+            color: var(--ink-500, #6b7280);
+            border: 1px solid #e5e7eb;
+            white-space: nowrap;
+        }
+
+        .tag.ok {
+            background: #f0fdf4;
+            border-color: #bbf7d0;
+            color: #15803d;
+        }
+
+        .tag.warn {
+            background: #fffbeb;
+            border-color: #fde68a;
+            color: #b45309;
+        }
+
+        .tag.bad {
+            background: #fef2f2;
+            border-color: #fecaca;
+            color: #b91c1c;
+        }
+
+        .db-status-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+            padding: 10px 12px;
+            background: var(--surface-subtle, #f5f7fb);
+            border: 1px solid var(--line, #d9e0ea);
+            border-radius: 8px;
+            min-width: 0;
+        }
+
+        .db-status-text {
+            font-size: 12px;
+            color: var(--ink-700, #374151);
+            line-height: 1.6;
+            word-break: break-all;
+            min-width: 0;
+        }
+
+        .device-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .device-toolbar .setting-select {
+            flex: 1 1 220px;
+            min-width: 0;
+        }
+
+        .mini-btn {
+            padding: 7px 12px;
+            border: 1px solid var(--line, #d9e0ea);
+            border-radius: 8px;
+            background: var(--surface, #fff);
+            color: var(--ink-700, #374151);
+            font-size: 12px;
+            font-family: inherit;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .mini-btn:hover {
+            border-color: var(--brand, #1d4ed8);
+            color: var(--brand, #1d4ed8);
+            background: var(--brand-soft, #eff6ff);
+        }
+
+        .model-file-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .model-file-row .setting-input {
+            flex: 1 1 220px;
+            min-width: 0;
+        }
+
+        .number-with-unit {
+            position: relative;
+        }
+
+        .number-with-unit .setting-input {
+            padding-right: 46px;
+        }
+
+        .number-with-unit .unit {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--ink-500, #6b7280);
+            font-size: 12px;
+            pointer-events: none;
+        }
+
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .slider-row input[type="range"] {
+            flex: 1;
+            min-width: 0;
+            accent-color: var(--brand, #1d4ed8);
+        }
+
+        .slider-range-hint {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 4px;
+            color: var(--ink-500, #6b7280);
+            font-size: 11px;
+        }
+
+        .slider-value {
+            display: inline-block;
+            min-width: 22px;
+            margin: 0 2px;
+            padding: 0 6px;
+            border-radius: 6px;
+            background: var(--brand-soft, #eff6ff);
+            color: var(--brand, #1d4ed8);
+            font-size: 12px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .settings-hint {
+            margin: 10px 0 0;
+            color: var(--ink-500, #6b7280);
+            font-size: 11px;
+            line-height: 1.7;
+        }
+
+        .settings-hint code {
+            padding: 1px 5px;
+            border-radius: 4px;
+            background: var(--surface-subtle, #f5f7fb);
+            color: var(--ink-700, #374151);
+            font-family: Consolas, Monaco, monospace;
+        }
+
+        .setting-field-error {
+            margin-top: 6px;
+            font-size: 11px;
+            color: #dc2626;
+        }
+
+        /* 全局 toast：右下角，3 秒自动消失 */
+        .toast-host {
+            position: fixed;
+            right: 24px;
+            bottom: 24px;
+            z-index: 4000;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        .toast {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            max-width: min(360px, calc(100vw - 48px));
+            padding: 12px 16px;
+            border-radius: 10px;
+            background: #111827;
+            color: #fff;
+            font-size: 13px;
+            line-height: 1.5;
+            box-shadow: 0 12px 30px rgba(17, 24, 39, 0.28);
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            pointer-events: auto;
+            word-break: break-word;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .toast-dot {
+            flex: 0 0 auto;
+            width: 8px;
+            height: 8px;
+            margin-top: 6px;
+            border-radius: 50%;
+            background: #60a5fa;
+        }
+
+        .toast-success {
+            border-left: 3px solid #4ade80;
+        }
+
+        .toast-success .toast-dot {
+            background: #4ade80;
+        }
+
+        .toast-error {
+            border-left: 3px solid #f87171;
+        }
+
+        .toast-error .toast-dot {
+            background: #f87171;
+        }
+
+        .toast-info {
+            border-left: 3px solid #60a5fa;
+        }
+
+        /* 设置页：分组标签页，一次只展示一个分区，避免双列错位与超长滚动 */
+        .settings-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 16px;
+            width: 100%;
+            max-width: 1120px;
+            margin: 0 auto;
+            align-items: start;
+        }
+
+        .settings-layout.is-dual {
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        }
+
+        .settings-col {
+            display: contents;
+        }
+
+        .settings-card.setting-group {
+            display: none;
+            margin: 0;
+        }
+
+        .settings-card.setting-group.is-panel-active {
+            display: block;
+            animation: settingsPanelIn 0.2s ease;
+        }
+
+        @keyframes settingsPanelIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        #page-settings .settings-actions .save-btn {
+            width: auto;
+            min-width: 148px;
+            padding-left: 20px;
+            padding-right: 20px;
+        }
+
+        @media (max-width: 1100px) {
+            .settings-layout.is-dual {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .settings-field-grid {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .settings-nav {
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                scrollbar-width: thin;
+            }
+        }
+</style>
 </head>
 <body>
     <div class="app-container">
@@ -2482,192 +2955,281 @@
 
                 <!-- 设备情况 -->
                 <div class="page" id="page-device-status">
-                    <iframe id="equipmentTwinFrame" src="/static/equipment.html?v=4" title="设备情况数字孪生" style="width:100%;height:calc(100vh - 150px);min-height:620px;border:0;display:block;border-radius:8px;background:#f5f7fb;"></iframe>
+                    <iframe id="equipmentTwinFrame" src="/static/equipment.html?v=6" title="设备情况数字孪生" style="width:100%;height:calc(100vh - 150px);min-height:620px;border:0;display:block;border-radius:10px;background:#eef2f8;"></iframe>
                 </div>
 
                 <!-- 系统设置 -->
                 <div class="page" id="page-settings">
-                    <div class="settings-grid">
-                        <div class="setting-group">
-                            <h3 class="setting-group-title">Supabase PostgreSQL</h3>
-                            <div class="setting-field">
-                                <label class="setting-label">数据库后端</label>
-                                <select class="setting-select" id="databaseBackend">
-                                    <option value="sqlite">SQLite 本地</option>
-                                    <option value="postgres">Supabase PostgreSQL</option>
-                                </select>
-                            </div>
-                            <div class="setting-field">
-                                <label class="setting-label">PostgreSQL DSN</label>
-                                <input type="password" class="setting-input" id="postgresDsn" placeholder="postgresql://postgres.xxx:password@aws-0-region.pooler.supabase.com:6543/postgres">
-                            </div>
-                            <div class="setting-field">
-                                <label class="setting-label">Supabase URL</label>
-                                <input type="text" class="setting-input" id="supabaseUrl" placeholder="https://项目.supabase.co">
-                            </div>
-                            <div class="setting-field">
-                                <label class="setting-label">Supabase Key</label>
-                                <input type="password" class="setting-input" id="supabaseKey" placeholder="anon 或 service role key">
-                            </div>
-                            <button type="button" class="save-btn" onclick="testDatabaseConnection()">测试连接</button>
-                            <button type="button" class="save-btn" style="margin-top:8px;background:#10b981;" onclick="saveSettings()">保存数据库配置</button>
-                            <div class="setting-field">
-                                <label class="setting-label">Supabase Storage Bucket</label>
-                                <input type="text" class="setting-input" id="supabaseStorageBucket" placeholder="device-models">
-                            </div>
+                    <div class="settings-shell">
+                        <div class="settings-nav" id="settingsNav" role="tablist" aria-label="设置分区导航">
+                            <button type="button" class="settings-nav-btn active" data-settings-target="settings-db" role="tab" aria-selected="true">数据库与存储</button>
+                            <button type="button" class="settings-nav-btn" data-settings-target="settings-device" role="tab" aria-selected="false">设备配置与 3D 模型</button>
+                            <button type="button" class="settings-nav-btn" data-settings-target="settings-thresholds" role="tab" aria-selected="false">阈值与报警</button>
+                            <button type="button" class="settings-nav-btn" data-settings-target="settings-ai" role="tab" aria-selected="false">AI 与 Skill</button>
+                            <button type="button" class="settings-nav-btn" data-settings-target="settings-feishu" role="tab" aria-selected="false">飞书与地图</button>
                         </div>
 
-                        <div class="setting-group">
-                            <h3 class="setting-group-title">Skill 管理</h3>
-                            <div class="setting-field">
-                                <label class="setting-label">Skill 名称</label>
-                                <input type="text" class="setting-input" id="skillName" placeholder="例如：设备巡检助手">
-                            </div>
-                            <div class="setting-field">
-                                <label class="setting-label">上传 Skill 文件</label>
-                                <input type="file" class="setting-input" id="skillFileInput" accept=".md,.txt,.json,.yaml,.yml">
-                            </div>
-                            <button type="button" class="save-btn" onclick="uploadSkill()">上传 Skill</button>
-                            <div id="skillList" style="margin-top:12px;font-size:13px;color:#6b7280;line-height:1.7;"></div>
-                        </div>
-                        <div class="setting-group">
-                            <h3 class="setting-group-title">设备情况配置</h3>
-                            <div class="setting-field">
-                                <label class="setting-label">选择设备</label>
-                                <div class="device-list-setting">
-                                    <select class="setting-select" id="deviceEditSelect" onchange="selectDevice(this.value)"></select>
-                                    <button type="button" class="save-btn" style="width:auto;padding:10px 14px;" onclick="createNewDevice()">新增设备</button>
-                                </div>
-                            </div>
-                            <div class="setting-field">
-                                <label class="setting-label">设备名称</label>
-                                <input type="text" class="setting-input" id="deviceNameInput" placeholder="工业设备 #01">
-                            </div>
-                            <div class="setting-field">
-                                <label class="setting-label">经度</label>
-                                <input type="text" class="setting-input" id="deviceLongitudeInput" placeholder="116.397428">
-                            </div>
-                            <div class="setting-field">
-                                <label class="setting-label">纬度</label>
-                                <input type="text" class="setting-input" id="deviceLatitudeInput" placeholder="39.90923">
-                            </div>
-                            <div class="setting-field">
-                                <label class="setting-label">注册日期</label>
-                                <input type="date" class="setting-input" id="deviceRegisteredInput">
-                            </div>
-                            <div class="setting-field">
-                                <label class="setting-label">使用状态</label>
-                                <select class="setting-select" id="deviceStatusInput">
-                                    <option value="运行中">运行中</option>
-                                    <option value="维护中">维护中</option>
-                                    <option value="停用">停用</option>
-                                    <option value="离线">离线</option>
-                                </select>
-                            </div>
-                            <div class="setting-field">
-                                <label class="setting-label">上传 3D 模型（.glb/.gltf）</label>
-                                <input type="file" class="setting-input" id="deviceModelInput" accept=".glb,.gltf,.bin">
-                            </div>
-                            <button type="button" class="save-btn" onclick="uploadDeviceModel()">上传模型</button>
-                            <button type="button" class="save-btn" style="margin-top:8px;background:#10b981;" onclick="saveDeviceSettings()">保存设备信息</button>
-                            <div class="model-status" id="deviceModelStatus"></div>
-                        </div>
-                        <div class="setting-group">
-                            <h3 class="setting-group-title">AI 对话配置</h3>
-                            <div class="setting-field">
-                                <label class="setting-label">API 地址</label>
-                                <input type="text" class="setting-input" value="http://localhost:8000" id="apiUrl">
-                            </div>
-                            <div class="setting-field">
-                                <label class="setting-label">Ollama 模型</label>
-                                <input type="text" class="setting-input" value="qwen3.5:0.8b" id="ollamaModel">
-                            </div>
-                            <div style="font-size:12px;color:#9ca3af;margin-bottom:12px;padding:8px;background:#eff6ff;border-radius:4px;border-left:3px solid #3b82f6;">
-                                Ollama AI 对话已启用 · 请确保本地 Ollama 服务运行在 http://localhost:11434
-                            </div>
-                            <button type="button" class="save-btn" onclick="saveSettings()">保存配置</button>
-                        </div>
+                        <div class="settings-layout">
+                            <div class="settings-col">
+                                <section class="setting-group settings-card" id="settings-db">
+                                    <div class="settings-card-head">
+                                        <h3 class="setting-group-title">数据库与存储</h3>
+                                        <span class="tag" id="dbStatusChip">加载中</span>
+                                    </div>
+                                    <p class="settings-card-desc">保存后写入 config.json 并初始化 MySQL 数据表；连接失败时后端自动回退 SQLite，不影响监控运行。</p>
+                                    <div class="db-status-bar">
+                                        <span class="db-status-text" id="dbStatusText">正在读取数据库状态…</span>
+                                    </div>
+                                    <div class="settings-field-grid">
+                                        <div class="setting-field">
+                                            <label class="setting-label" for="dbBackendSelect">数据库类型</label>
+                                            <select class="setting-select" id="dbBackendSelect">
+                                                <option value="mysql">MySQL</option>
+                                                <option value="sqlite">SQLite（本地兜底）</option>
+                                            </select>
+                                        </div>
+                                        <div class="setting-field">
+                                            <label class="setting-label" for="mysqlPortInput">端口</label>
+                                            <input type="number" class="setting-input" id="mysqlPortInput" value="3307" min="1" max="65535" step="1" placeholder="3307">
+                                        </div>
+                                        <div class="setting-field">
+                                            <label class="setting-label" for="mysqlHostInput">主机</label>
+                                            <input type="text" class="setting-input" id="mysqlHostInput" value="127.0.0.1" placeholder="127.0.0.1">
+                                        </div>
+                                        <div class="setting-field">
+                                            <label class="setting-label" for="mysqlUserInput">用户名</label>
+                                            <input type="text" class="setting-input" id="mysqlUserInput" value="root" placeholder="root" autocomplete="off">
+                                        </div>
+                                        <div class="setting-field">
+                                            <label class="setting-label" for="mysqlPasswordInput">密码</label>
+                                            <input type="password" class="setting-input" id="mysqlPasswordInput" placeholder="留空表示不修改" autocomplete="new-password">
+                                        </div>
+                                        <div class="setting-field">
+                                            <label class="setting-label" for="mysqlDatabaseInput">数据库名</label>
+                                            <input type="text" class="setting-input" id="mysqlDatabaseInput" value="monitor_system" placeholder="monitor_system">
+                                        </div>
+                                    </div>
+                                    <div class="settings-actions">
+                                        <button type="button" class="save-btn" id="dbTestBtn" onclick="testDatabaseConnection()">测试连接</button>
+                                        <button type="button" class="save-btn" id="dbSaveBtn" onclick="saveDatabaseConfig()">保存并初始化</button>
+                                    </div>
+                                    <div class="inline-message" id="dbMessage" role="status"></div>
+                                    <p class="settings-hint">MySQL 服务启动方式见项目 README 的 MySQL 章节；默认端口 3307，保存后自动建库建表。</p>
+                                </section>
 
-                        <div class="setting-group">
-                            <h3 class="setting-group-title">阈值设置</h3>
-                            <div class="setting-field">
-                                <label class="setting-label">温度上限 (°C)</label>
-                                <input type="number" class="setting-input" value="40" id="tempThreshold">
+                                <section class="setting-group settings-card" id="settings-device">
+                                    <div class="settings-card-head">
+                                        <h3 class="setting-group-title">设备配置与 3D 模型</h3>
+                                        <span class="tag" id="deviceSourceText">模型来源：-</span>
+                                    </div>
+                                    <p class="settings-card-desc">设备信息保存后同步到地图与设备情况页面；模型支持 .glb / .gltf / .bin，单个文件不超过 80MB。</p>
+                                    <div class="device-toolbar">
+                                        <select class="setting-select" id="deviceEditSelect" onchange="selectDevice(this.value)" aria-label="选择要编辑的设备"></select>
+                                        <button type="button" class="mini-btn" id="createDeviceBtn" onclick="createNewDevice()">新增设备</button>
+                                        <span class="tag" id="deviceModelStatus">未配置</span>
+                                    </div>
+                                    <div class="settings-field-grid">
+                                        <div class="setting-field">
+                                            <label class="setting-label" for="deviceNameInput">设备名称</label>
+                                            <input type="text" class="setting-input" id="deviceNameInput" placeholder="工业设备 #01">
+                                        </div>
+                                        <div class="setting-field">
+                                            <label class="setting-label" for="deviceIdDisplay">设备编号</label>
+                                            <input type="text" class="setting-input" id="deviceIdDisplay" readonly>
+                                        </div>
+                                        <div class="setting-field">
+                                            <label class="setting-label" for="deviceStationDisplay">工位序号</label>
+                                            <input type="text" class="setting-input" id="deviceStationDisplay" readonly>
+                                        </div>
+                                        <div class="setting-field">
+                                            <label class="setting-label" for="deviceStatusInput">使用状态</label>
+                                            <select class="setting-select" id="deviceStatusInput">
+                                                <option value="运行中">运行中</option>
+                                                <option value="维护中">维护中</option>
+                                                <option value="停用">停用</option>
+                                                <option value="离线">离线</option>
+                                            </select>
+                                        </div>
+                                        <div class="setting-field">
+                                            <label class="setting-label" for="deviceLongitudeInput">经度</label>
+                                            <input type="text" class="setting-input" id="deviceLongitudeInput" placeholder="116.397428">
+                                        </div>
+                                        <div class="setting-field">
+                                            <label class="setting-label" for="deviceLatitudeInput">纬度</label>
+                                            <input type="text" class="setting-input" id="deviceLatitudeInput" placeholder="39.90923">
+                                        </div>
+                                        <div class="setting-field">
+                                            <label class="setting-label" for="deviceRegisteredInput">注册日期</label>
+                                            <input type="date" class="setting-input" id="deviceRegisteredInput">
+                                        </div>
+                                        <div class="setting-field">
+                                            <label class="setting-label" for="deviceModelInput">模型文件</label>
+                                            <div class="model-file-row">
+                                                <input type="file" class="setting-input" id="deviceModelInput" accept=".glb,.gltf,.bin">
+                                                <button type="button" class="mini-btn" id="uploadModelBtn" onclick="uploadDeviceModel()">上传模型</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="settings-actions">
+                                        <button type="button" class="save-btn" id="saveDeviceBtn" onclick="saveDeviceSettings()">保存设备配置</button>
+                                    </div>
+                                    <div class="inline-message" id="deviceFormMessage" role="status"></div>
+                                </section>
                             </div>
-                            <div class="setting-field">
-                                <label class="setting-label">湿度上限 (%)</label>
-                                <input type="number" class="setting-input" value="80" id="humidThreshold">
-                            </div>
-                            <div class="setting-field">
-                                <label class="setting-label">振动阈值 (mm/s)</label>
-                                <input type="number" class="setting-input" value="0.5" id="vibThreshold" step="0.01">
-                            </div>
-                            <button type="button" class="save-btn" onclick="saveThresholds()">保存阈值</button>
-                        </div>
 
-                        <div class="setting-group">
-                            <h3 class="setting-group-title">报警设置</h3>
-                            <div class="setting-field">
-                                <label class="setting-label">异常触发阈值（条）</label>
-                                <input type="range" style="width:100%;accent-color:#3b82f6;" min="1" max="20" value="3" id="anomalyCountSlider" oninput="document.getElementById('anomalyCountValue').textContent=this.value">
-                                <div style="margin-top:6px;font-size:13px;color:#6b7280;">当前值：<strong id="anomalyCountValue">3</strong> 条</div>
-                            </div>
-                            <button type="button" class="save-btn" onclick="saveAlertSettings()">保存设置</button>
-                        </div>
+                            <div class="settings-col">
+                                <section class="setting-group settings-card" id="settings-thresholds">
+                                    <div class="settings-card-head">
+                                        <h3 class="setting-group-title">阈值与报警</h3>
+                                        <span class="tag">超限即告警</span>
+                                    </div>
+                                    <p class="settings-card-desc">阈值为传感器上限值，保存后立即生效；输入非法时会被拦截并提示，不会提交。</p>
+                                    <div class="settings-field-grid">
+                                        <div class="setting-field">
+                                            <label class="setting-label" for="tempThreshold">温度上限</label>
+                                            <div class="number-with-unit">
+                                                <input type="number" class="setting-input" id="tempThreshold" value="40" min="0" max="150" step="0.1">
+                                                <span class="unit">°C</span>
+                                            </div>
+                                            <div class="input-error-text" id="tempThresholdError"></div>
+                                        </div>
+                                        <div class="setting-field">
+                                            <label class="setting-label" for="humidThreshold">湿度上限</label>
+                                            <div class="number-with-unit">
+                                                <input type="number" class="setting-input" id="humidThreshold" value="80" min="0" max="100" step="0.1">
+                                                <span class="unit">%</span>
+                                            </div>
+                                            <div class="input-error-text" id="humidThresholdError"></div>
+                                        </div>
+                                        <div class="setting-field setting-field-wide">
+                                            <label class="setting-label" for="vibThreshold">振动阈值</label>
+                                            <div class="number-with-unit">
+                                                <input type="number" class="setting-input" id="vibThreshold" value="0.5" min="0" max="50" step="0.01">
+                                                <span class="unit">mm/s</span>
+                                            </div>
+                                            <div class="input-error-text" id="vibThresholdError"></div>
+                                        </div>
+                                        <div class="setting-field setting-field-wide">
+                                            <label class="setting-label" for="anomalyCountSlider">报警触发次数：连续 <span class="slider-value" id="anomalyCountValue">3</span> 条异常即触发报警</label>
+                                            <div class="slider-row">
+                                                <input type="range" id="anomalyCountSlider" min="1" max="20" step="1" value="3" oninput="document.getElementById('anomalyCountValue').textContent=this.value">
+                                            </div>
+                                            <div class="slider-range-hint"><span>1 条</span><span>20 条</span></div>
+                                        </div>
+                                    </div>
+                                    <div class="settings-actions">
+                                        <button type="button" class="save-btn" id="saveThresholdBtn" onclick="saveThresholds()">保存阈值与报警设置</button>
+                                    </div>
+                                    <div class="inline-message" id="thresholdMessage" role="status"></div>
+                                </section>
 
-                        <div class="setting-group">
-                            <h3 class="setting-group-title">飞书机器人对接</h3>
-                            <div class="setting-field">
-                                <label class="setting-label">Webhook 地址</label>
-                                <input type="text" class="setting-input" value="https://open.feishu.cn/open-apis/bot/v2/hook/855587d0-6c3b-4c1e-a865-eb3ee8e7fea3" id="feishuWebhook">
-                            </div>
-                            <div class="setting-field">
-                                <label class="setting-label">事件回调 Token</label>
-                                <input type="text" class="setting-input" value="" id="feishuToken" placeholder="飞书事件订阅 Verification Token，可为空">
-                            </div>
-                            <div class="setting-field">
-                                <label class="setting-label">事件回调地址</label>
-                                <input type="text" class="setting-input" value="https://width-gusty-taekwondo.ngrok-free.dev/api/feishu/events" id="feishuEventUrl">
-                            </div>
-                            <div class="setting-field">
-                                <label class="setting-label">
-                                    <input type="checkbox" id="feishuForwardReplies" checked>
-                                    网页 AI 回复同步到飞书群
-                                </label>
-                            </div>
-                            <div class="setting-field">
-                                <label class="setting-label">
-                                    <input type="checkbox" id="feishuReceiveMessages" checked>
-                                    接收飞书群消息并自动回复
-                                </label>
-                            </div>
-                            <button type="button" class="save-btn" onclick="saveSettings()">保存飞书配置</button>
-                            <button type="button" class="save-btn" style="margin-top:8px;background:#10b981;" onclick="testFeishuWebhook()">发送测试消息</button>
-                        </div>
+                                <section class="setting-group settings-card" id="settings-ai">
+                                    <div class="settings-card-head">
+                                        <h3 class="setting-group-title">AI 对话</h3>
+                                        <span class="tag">本地 Ollama</span>
+                                    </div>
+                                    <p class="settings-card-desc">用于网页 AI 对话与飞书群自动回复，保存后立即生效。</p>
+                                    <div class="settings-field-grid">
+                                        <input type="hidden" id="apiUrl" value="http://localhost:8000">
+                                        <div class="setting-field">
+                                            <label class="setting-label" for="ollamaApiUrlSettings">Ollama API 地址</label>
+                                            <input type="text" class="setting-input" id="ollamaApiUrlSettings" value="http://localhost:11434">
+                                        </div>
+                                        <div class="setting-field">
+                                            <label class="setting-label" for="ollamaModel">Ollama 模型</label>
+                                            <input type="text" class="setting-input" id="ollamaModel" value="qwen3.5:0.8b">
+                                        </div>
+                                    </div>
+                                    <div class="settings-actions">
+                                        <button type="button" class="save-btn" onclick="saveSettings()">保存 AI 配置</button>
+                                    </div>
+                                    <p class="settings-hint">请确保本地 Ollama 服务运行在 http://localhost:11434。</p>
+                                </section>
 
-                        <div class="setting-group">
-                            <h3 class="setting-group-title">高德地图配置</h3>
-                            <div class="setting-field">
-                                <label class="setting-label">JS API Key</label>
-                                <input type="text" class="setting-input" value="f0099d224e19f0dc3b1fb75bc79c738a" id="amapKey">
+                                <section class="setting-group settings-card" id="settings-skill">
+                                    <div class="settings-card-head">
+                                        <h3 class="setting-group-title">Skill 管理</h3>
+                                        <span class="tag">自定义能力</span>
+                                    </div>
+                                    <div class="settings-field-grid">
+                                        <div class="setting-field setting-field-wide">
+                                            <label class="setting-label" for="skillName">Skill 名称</label>
+                                            <input type="text" class="setting-input" id="skillName" placeholder="例如：设备巡检助手">
+                                        </div>
+                                        <div class="setting-field setting-field-wide">
+                                            <label class="setting-label" for="skillFileInput">Skill 文件</label>
+                                            <input type="file" class="setting-input" id="skillFileInput" accept=".md,.txt,.json,.yaml,.yml">
+                                        </div>
+                                    </div>
+                                    <div class="settings-actions">
+                                        <button type="button" class="save-btn" onclick="uploadSkill()">上传 Skill</button>
+                                    </div>
+                                    <div id="skillList" class="settings-hint"></div>
+                                </section>
+
+                                <section class="setting-group settings-card" id="settings-feishu">
+                                    <div class="settings-card-head">
+                                        <h3 class="setting-group-title">飞书机器人</h3>
+                                        <span class="tag">消息通知</span>
+                                    </div>
+                                    <p class="settings-card-desc">报警与 AI 回复可推送到飞书群，支持事件回调自动回复。</p>
+                                    <div class="settings-field-grid">
+                                        <div class="setting-field setting-field-wide">
+                                            <label class="setting-label" for="feishuWebhook">Webhook 地址</label>
+                                            <input type="text" class="setting-input" id="feishuWebhook" value="https://open.feishu.cn/open-apis/bot/v2/hook/855587d0-6c3b-4c1e-a865-eb3ee8e7fea3">
+                                        </div>
+                                        <div class="setting-field">
+                                            <label class="setting-label" for="feishuToken">事件回调 Token</label>
+                                            <input type="text" class="setting-input" id="feishuToken" value="" placeholder="可为空">
+                                        </div>
+                                        <div class="setting-field">
+                                            <label class="setting-label" for="feishuEventUrl">事件回调地址</label>
+                                            <input type="text" class="setting-input" id="feishuEventUrl" value="https://width-gusty-taekwondo.ngrok-free.dev/api/feishu/events">
+                                        </div>
+                                        <div class="setting-field setting-field-wide">
+                                            <label class="setting-label"><input type="checkbox" id="feishuForwardReplies" checked> 网页 AI 回复同步到飞书群</label>
+                                            <label class="setting-label"><input type="checkbox" id="feishuReceiveMessages" checked> 接收飞书群消息并自动回复</label>
+                                        </div>
+                                    </div>
+                                    <div class="settings-actions">
+                                        <button type="button" class="save-btn" onclick="saveSettings()">保存飞书配置</button>
+                                        <button type="button" class="save-btn" onclick="testFeishuWebhook()">发送测试消息</button>
+                                    </div>
+                                </section>
+
+                                <section class="setting-group settings-card" id="settings-map">
+                                    <div class="settings-card-head">
+                                        <h3 class="setting-group-title">高德地图配置</h3>
+                                        <span class="tag">环境地图</span>
+                                    </div>
+                                    <div class="settings-field-grid">
+                                        <div class="setting-field setting-field-wide">
+                                            <label class="setting-label" for="amapKey">JS API Key</label>
+                                            <input type="text" class="setting-input" id="amapKey" value="f0099d224e19f0dc3b1fb75bc79c738a">
+                                        </div>
+                                        <div class="setting-field setting-field-wide">
+                                            <label class="setting-label" for="amapWebKey">Web 服务 Key（IP 定位）</label>
+                                            <input type="text" class="setting-input" id="amapWebKey" value="578f1f4cb115a2a1ce742daae12350e5">
+                                        </div>
+                                        <div class="setting-field">
+                                            <label class="setting-label" for="mapCenterLng">默认中心点经度</label>
+                                            <input type="text" class="setting-input" id="mapCenterLng" value="116.397428">
+                                        </div>
+                                        <div class="setting-field">
+                                            <label class="setting-label" for="mapCenterLat">默认中心点纬度</label>
+                                            <input type="text" class="setting-input" id="mapCenterLat" value="39.90923">
+                                        </div>
+                                    </div>
+                                    <div class="settings-actions">
+                                        <button type="button" class="save-btn" onclick="saveMapSettings()">保存地图配置</button>
+                                    </div>
+                                </section>
                             </div>
-                            <div class="setting-field">
-                                <label class="setting-label">Web服务Key (IP定位)</label>
-                                <input type="text" class="setting-input" value="578f1f4cb115a2a1ce742daae12350e5" id="amapWebKey">
-                            </div>
-                            <div class="setting-field">
-                                <label class="setting-label">默认中心点经度</label>
-                                <input type="text" class="setting-input" value="116.397428" id="mapCenterLng">
-                            </div>
-                            <div class="setting-field">
-                                <label class="setting-label">默认中心点纬度</label>
-                                <input type="text" class="setting-input" value="39.90923" id="mapCenterLat">
-                            </div>
-                            <button type="button" class="save-btn" onclick="saveMapSettings()">保存地图配置</button>
                         </div>
                     </div>
                 </div>
             </div>
+
         </main>
     </div>
 
@@ -2687,6 +3249,8 @@
             </div>
         </div>
     </div>
+
+    <div class="toast-host" id="toastHost" aria-live="polite"></div>
 
     <script type="module">
         import * as THREE from 'three';
@@ -2882,9 +3446,9 @@
                 'charts': ['数据分析', '历史数据可视化与趋势分析（需后端提供）'],
                 'camera': ['摄像头监控', '实时视频画面监控'],
                 'map': ['设备地图', '高德地图展示设备位置'],
-                'device-status': ['设备情况', '查看设备 3D 模型与基础信息'],
+                'device-status': ['设备情况', '三维数字孪生 · 实时工况与告警联动'],
                 'alerts': ['报警中心', '查看和处理报警信息'],
-                'settings': ['系统设置', '配置连接参数和阈值']
+                'settings': ['系统设置', '配置数据库、设备模型、阈值与报警参数']
             };
 
             const [title, desc] = titles[pageName] || ['监控大屏', ''];
@@ -2903,7 +3467,12 @@
                 initAMap();
             } else if (pageName === 'device-status') {
                 setTimeout(postEquipmentConfig, 80);
+                postTwinVisibility(true);
+            } else if (pageName === 'settings') {
+                initSettingsNav();
+                loadDatabaseStatus();
             }
+            if (pageName !== 'device-status') postTwinVisibility(false);
         }
 
         // ECharts 图表 - 空白占位，等数据来再渲染
@@ -3967,7 +4536,7 @@
             const fileInput = document.getElementById('skillFileInput');
             const apiUrl = document.getElementById('apiUrl').value || 'http://localhost:8000';
             if (!fileInput.files.length) {
-                alert('请选择 skill 文件');
+                showToast('请选择 skill 文件', 'error');
                 return;
             }
             const form = new FormData();
@@ -3977,12 +4546,12 @@
                 const res = await fetch(`${apiUrl}/api/skills`, { method: 'POST', body: form });
                 const data = await res.json();
                 if (!res.ok || !data.success) throw new Error(data.detail || data.message || '上传失败');
-                alert('Skill 已上传');
+                showToast('Skill 已上传', 'success');
                 fileInput.value = '';
                 document.getElementById('skillName').value = '';
                 loadSkills();
             } catch (e) {
-                alert('Skill 上传失败：' + e.message);
+                showToast('Skill 上传失败：' + e.message, 'error');
             }
         }
 
@@ -4049,6 +4618,12 @@
             postEquipmentConfig();
         }
 
+        function postTwinVisibility(visible) {
+            const frame = document.getElementById('equipmentTwinFrame');
+            if (!frame?.contentWindow) return;
+            frame.contentWindow.postMessage({ type: 'equipment-visibility', visible: !!visible }, '*');
+        }
+
         function postEquipmentConfig() {
             const frame = document.getElementById('equipmentTwinFrame');
             if (!frame?.contentWindow) return;
@@ -4066,7 +4641,14 @@
             if (event.data?.type === 'equipment-settings') {
                 if (event.data.deviceId) selectDevice(event.data.deviceId);
                 switchPage('settings');
-                document.getElementById('deviceEditSelect')?.scrollIntoView({ block: 'center' });
+                activateSettingsPanel('settings-device');
+            }
+            if (event.data?.type === 'equipment-select') {
+                if (event.data.deviceId) selectDevice(event.data.deviceId);
+            }
+            if (event.data?.type === 'equipment-alerts') {
+                switchPage('alerts');
+                fetchAlarms();
             }
         });
 
@@ -4074,12 +4656,14 @@
             const selects = ['deviceSwitchSelect', 'deviceEditSelect', 'mapDeviceSelect']
                 .map(id => document.getElementById(id))
                 .filter(Boolean);
+            const current = devices.some(device => device.id === selectedDeviceId)
+                ? selectedDeviceId
+                : (devices[0] ? devices[0].id : '');
             selects.forEach((select) => {
-                const current = select.value || selectedDeviceId;
                 select.innerHTML = devices.map(device => (
                     `<option value="${device.id}">${device.name || device.id}</option>`
                 )).join('');
-                select.value = devices.some(device => device.id === current) ? current : selectedDeviceId;
+                select.value = current;
             });
         }
 
@@ -4090,14 +4674,15 @@
             deviceInfo = target;
             renderDeviceSelectors();
             applyDeviceInfo(deviceInfo);
+            setDeviceFormMessage('', '');
         }
 
         function createNewDevice() {
-            const id = `device-${Date.now()}`;
+            const id = 'device-' + Date.now();
             const nextNumber = devices.length + 1;
-            const device = {
+            const draft = {
                 id,
-                name: `工业设备 #${String(nextNumber).padStart(2, '0')}`,
+                name: '工业设备 #' + String(nextNumber).padStart(2, '0'),
                 longitude: '',
                 latitude: '',
                 registered_at: new Date().toISOString().slice(0, 10),
@@ -4105,16 +4690,13 @@
                 model_url: '',
                 model_filename: ''
             };
-            devices.push(device);
             selectedDeviceId = id;
-            deviceInfo = device;
-            renderDeviceSelectors();
-            applyDeviceInfo(device);
-            saveAllDevices(false).then(() => {
-                setDeviceStatus('新设备已创建，请完善信息并上传模型', 'success');
-            }).catch((e) => {
-                setDeviceStatus(e.message || '新设备保存失败', 'error');
-            });
+            deviceInfo = draft;
+            applyDeviceInfo(draft);
+            setDeviceFormMessage('已创建新设备草稿，完善信息后点击「保存设备配置」', 'info');
+            showToast('已创建新设备，请完善信息后保存', 'success');
+            const nameInput = document.getElementById('deviceNameInput');
+            if (nameInput) { nameInput.value = draft.name; nameInput.focus(); }
         }
 
         async function saveAllDevices(showAlert = false) {
@@ -4152,7 +4734,7 @@
             const latitude = deviceInfo.latitude || '未配置';
             const registered = deviceInfo.registered_at || '未配置';
             const status = deviceInfo.status || '运行中';
-            const modelFile = deviceInfo.model_filename || '未上传';
+            const modelFile = deviceInfo.model_filename || '';
 
             const setText = (id, value) => {
                 const el = document.getElementById(id);
@@ -4163,7 +4745,7 @@
             setText('deviceLatitudeDisplay', latitude);
             setText('deviceRegisteredDisplay', registered);
             setText('deviceStatusDisplay', status);
-            setText('deviceModelFileDisplay', modelFile);
+            setText('deviceModelFileDisplay', modelFile || '未上传');
 
             const setValue = (id, value) => {
                 const el = document.getElementById(id);
@@ -4174,39 +4756,103 @@
             setValue('deviceLatitudeInput', deviceInfo.latitude || '');
             setValue('deviceRegisteredInput', deviceInfo.registered_at || '');
             setValue('deviceStatusInput', status);
+            setValue('deviceIdDisplay', deviceInfo.id || '');
+            const deviceIndex = devices.findIndex(device => device.id === deviceInfo.id);
+            setValue('deviceStationDisplay', deviceIndex >= 0 ? '工位 ' + (deviceIndex + 1) : '未保存');
 
+            const modelStatus = document.getElementById('deviceModelStatus');
+            const sourceText = document.getElementById('deviceSourceText');
             if (deviceInfo.model_url) {
+                if (modelStatus) { modelStatus.className = 'tag ok'; modelStatus.textContent = '已上传'; }
+                if (sourceText) { sourceText.className = 'tag ok'; sourceText.textContent = '模型来源：已上传 · ' + (modelFile || '模型文件'); }
                 loadDeviceModel(deviceInfo.model_url);
+            } else if (deviceIndex >= 0) {
+                if (modelStatus) { modelStatus.className = 'tag'; modelStatus.textContent = '内置模型'; }
+                if (sourceText) { sourceText.className = 'tag'; sourceText.textContent = '模型来源：内置模型'; }
+                showDeviceModelEmpty(true);
             } else {
+                if (modelStatus) { modelStatus.className = 'tag warn'; modelStatus.textContent = '未配置'; }
+                if (sourceText) { sourceText.className = 'tag warn'; sourceText.textContent = '模型来源：未配置'; }
                 showDeviceModelEmpty(true);
             }
         }
 
+        function setDeviceFormMessage(message, type) {
+            const el = document.getElementById('deviceFormMessage');
+            if (!el) return;
+            el.textContent = message || '';
+            el.className = 'inline-message' + (type ? ' ' + type : '');
+        }
+
         function setDeviceStatus(message, type = 'info') {
-            const statusDiv = document.getElementById('deviceModelStatus');
-            if (!statusDiv) return;
-            statusDiv.textContent = message;
-            statusDiv.className = `model-status show ${type}`;
+            setDeviceFormMessage(message, type);
         }
 
         async function saveDeviceSettings(showAlert = true) {
-            await saveAllDevices(showAlert);
+            const nameInput = document.getElementById('deviceNameInput');
+            const name = nameInput ? String(nameInput.value).trim() : '';
+            if (!name) {
+                setDeviceFormMessage('请填写设备名称', 'error');
+                showToast('请填写设备名称', 'error');
+                if (nameInput) nameInput.focus();
+                return;
+            }
+            const longitudeInput = document.getElementById('deviceLongitudeInput');
+            const latitudeInput = document.getElementById('deviceLatitudeInput');
+            const longitude = longitudeInput ? String(longitudeInput.value).trim() : '';
+            const latitude = latitudeInput ? String(latitudeInput.value).trim() : '';
+            if (longitude && !/^-?\d+(\.\d+)?$/.test(longitude)) {
+                setDeviceFormMessage('经度需为数字，例如 116.397428', 'error');
+                showToast('经度格式不正确', 'error');
+                return;
+            }
+            if (latitude && !/^-?\d+(\.\d+)?$/.test(latitude)) {
+                setDeviceFormMessage('纬度需为数字，例如 39.90923', 'error');
+                showToast('纬度格式不正确', 'error');
+                return;
+            }
+            try {
+                await saveAllDevices(false);
+                renderDeviceSelectors();
+                applyDeviceInfo(deviceInfo);
+                setDeviceFormMessage('设备配置已保存，地图与设备情况页面已同步', 'success');
+                if (showAlert) showToast('设备配置已保存', 'success');
+                if (typeof window.postEquipmentConfig === 'function') window.postEquipmentConfig();
+            } catch (err) {
+                setDeviceFormMessage('保存失败：' + (err && err.message ? err.message : '网络异常'), 'error');
+                showToast('设备配置保存失败', 'error');
+            }
         }
 
         async function uploadDeviceModel() {
             const input = document.getElementById('deviceModelInput');
-            if (!input?.files?.length) {
-                alert('请选择 .glb/.gltf 设备模型文件');
+            const btn = document.getElementById('uploadModelBtn');
+            if (!input || !input.files || !input.files.length) {
+                setDeviceFormMessage('请选择 .glb / .gltf / .bin 设备模型文件', 'error');
+                showToast('请选择模型文件', 'error');
                 return;
             }
-            const apiUrl = document.getElementById('apiUrl').value || 'http://localhost:8000';
-            const form = new FormData();
-            form.append('file', input.files[0]);
-            form.append('device_id', selectedDeviceId);
+            const file = input.files[0];
+            const fileName = String(file.name || '').toLowerCase();
+            if (!/\.(glb|gltf|bin)$/.test(fileName)) {
+                setDeviceFormMessage('仅支持 .glb / .gltf / .bin 格式的模型文件', 'error');
+                showToast('模型文件格式不支持', 'error');
+                return;
+            }
+            if (file.size > 80 * 1024 * 1024) {
+                setDeviceFormMessage('模型文件不能超过 80MB', 'error');
+                showToast('模型文件过大', 'error');
+                return;
+            }
+            const originalText = btn ? btn.textContent : '上传模型';
+            if (btn) { btn.disabled = true; btn.textContent = '上传中…'; }
             deviceInfo = { ...deviceInfo, ...getDevicePayload() };
-            setDeviceStatus('模型上传中...', 'info');
+            setDeviceStatus('模型上传中…', 'info');
             try {
-                const res = await fetch(`${apiUrl}/api/device/model`, { method: 'POST', body: form });
+                const form = new FormData();
+                form.append('file', file);
+                form.append('device_id', selectedDeviceId);
+                const res = await fetch('/api/device/model', { method: 'POST', body: form });
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok || !data.success) throw new Error(data.detail || data.message || '上传失败');
                 input.value = '';
@@ -4216,10 +4862,18 @@
                 if (index >= 0) devices[index] = { ...devices[index], ...deviceInfo };
                 await saveAllDevices(false);
                 applyDeviceInfo(deviceInfo);
-                const storageText = data.storage_backend === 'supabase' ? '云端' : '本地兜底';
-                setDeviceStatus(`模型已上传到${storageText}：${data.filename}`, data.storage_backend === 'supabase' ? 'success' : 'info');
-            } catch (e) {
-                setDeviceStatus(e.message || '模型上传失败，请检查后端服务是否运行', 'error');
+                setDeviceFormMessage('模型已上传到本地存储' + (data.filename ? '：' + data.filename : ''), 'success');
+                const sourceText = document.getElementById('deviceSourceText');
+                if (sourceText) {
+                    sourceText.className = 'tag ok';
+                    sourceText.textContent = '模型来源：本地存储 · ' + (data.filename || '模型文件');
+                }
+                showToast('模型上传成功', 'success');
+            } catch (err) {
+                setDeviceFormMessage('模型上传失败：' + (err && err.message ? err.message : '网络异常'), 'error');
+                showToast('模型上传失败', 'error');
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = originalText; }
             }
         }
 
@@ -4383,58 +5037,329 @@
             });
         }
 
-        async function testDatabaseConnection() {
-            const apiUrl = document.getElementById('apiUrl').value || 'http://localhost:8000';
-            try {
-                const res = await fetch(`${apiUrl}/api/database/test`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ postgres_dsn: document.getElementById('postgresDsn').value })
-                });
-                const data = await res.json();
-                alert(data.message || (data.success ? '数据库连接成功' : '数据库连接失败'));
-            } catch (e) {
-                alert('数据库连接失败：' + e.message);
+        function showToast(message, type) {
+            const host = document.getElementById('toastHost');
+            if (!host) return null;
+            const text = String(message == null ? '' : message);
+            const kind = type === 'success' || type === 'error' ? type : 'info';
+            const item = document.createElement('div');
+            item.className = 'toast toast-' + kind;
+            const dot = document.createElement('span');
+            dot.className = 'toast-dot';
+            const body = document.createElement('span');
+            body.className = 'toast-text';
+            body.textContent = text;
+            item.appendChild(dot);
+            item.appendChild(body);
+            host.appendChild(item);
+            requestAnimationFrame(() => item.classList.add('show'));
+            window.setTimeout(() => {
+                item.classList.remove('show');
+                window.setTimeout(() => {
+                    if (item.parentNode) item.parentNode.removeChild(item);
+                }, 280);
+            }, 3000);
+            return item;
+        }
+
+        const SETTINGS_PANELS = {
+            'settings-db': ['settings-db'],
+            'settings-device': ['settings-device'],
+            'settings-thresholds': ['settings-thresholds'],
+            'settings-ai': ['settings-ai', 'settings-skill'],
+            'settings-feishu': ['settings-feishu', 'settings-map']
+        };
+        const SETTINGS_TAB_ALIASES = {
+            'settings-skill': 'settings-ai',
+            'settings-map': 'settings-feishu'
+        };
+
+        function activateSettingsPanel(targetId, persist) {
+            const nav = document.getElementById('settingsNav');
+            if (!nav) return;
+            const panelKey = SETTINGS_TAB_ALIASES[targetId] || targetId;
+            const cardIds = SETTINGS_PANELS[panelKey];
+            if (!cardIds) return;
+            const layout = document.querySelector('#page-settings .settings-layout');
+            if (layout) layout.classList.toggle('is-dual', cardIds.length > 1);
+            const buttons = Array.from(nav.querySelectorAll('[data-settings-target]'));
+            buttons.forEach((b) => {
+                const active = b.getAttribute('data-settings-target') === panelKey;
+                b.classList.toggle('active', active);
+                b.setAttribute('aria-selected', active ? 'true' : 'false');
+                b.tabIndex = active ? 0 : -1;
+            });
+            document.querySelectorAll('#page-settings .settings-card').forEach((card) => {
+                card.classList.toggle('is-panel-active', cardIds.includes(card.id));
+            });
+            if (persist !== false) {
+                try { localStorage.setItem('monitor_settings_tab', panelKey); } catch (err) {}
+            }
+            const page = document.getElementById('page-settings');
+            if (page) {
+                const top = page.getBoundingClientRect().top;
+                if (top < 0) page.scrollIntoView({ block: 'start' });
             }
         }
 
-        function saveSettings() {
-            localStorage.setItem('monitor_apiUrl', document.getElementById('apiUrl').value);
-            localStorage.setItem('monitor_ollamaModel', document.getElementById('ollamaModel').value);
-            localStorage.setItem('monitor_feishuWebhook', document.getElementById('feishuWebhook').value);
-            localStorage.setItem('monitor_feishuToken', document.getElementById('feishuToken').value);
-            localStorage.setItem('monitor_feishuEventUrl', document.getElementById('feishuEventUrl').value);
-            localStorage.setItem('monitor_databaseBackend', document.getElementById('databaseBackend').value);
-            localStorage.setItem('monitor_postgresDsn', document.getElementById('postgresDsn').value);
-            localStorage.setItem('monitor_supabaseUrl', document.getElementById('supabaseUrl').value);
-            localStorage.setItem('monitor_supabaseKey', document.getElementById('supabaseKey').value);
-            localStorage.setItem('monitor_supabaseStorageBucket', document.getElementById('supabaseStorageBucket').value || 'device-models');
-            
-            const apiUrl = document.getElementById('apiUrl').value || 'http://localhost:8000';
-            fetch(`${apiUrl}/api/settings`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ollama_model: document.getElementById('ollamaModel').value,
-                    feishu_webhook: document.getElementById('feishuWebhook').value,
-                    feishu_verification_token: document.getElementById('feishuToken').value,
-                    feishu_forward_ai_replies: document.getElementById('feishuForwardReplies').checked,
-                    feishu_receive_group_messages: document.getElementById('feishuReceiveMessages').checked,
-                    database_backend: document.getElementById('databaseBackend').value,
-                    postgres_dsn: document.getElementById('postgresDsn').value,
-                    supabase_url: document.getElementById('supabaseUrl').value,
-                    supabase_key: document.getElementById('supabaseKey').value,
-                    supabase_storage_bucket: document.getElementById('supabaseStorageBucket').value || 'device-models',
-                    thresholds: currentThresholds,
-                    alarm_trigger_count: currentAlarmSettings.alarm_trigger_count,
-                    alarm_window_seconds: currentAlarmSettings.alarm_window_seconds,
-                    devices,
-                    selected_device_id: selectedDeviceId,
-                    device_info: getDevicePayload()
-                })
-            }).catch(e => console.warn('同步设置到后端失败:', e));
-            
-            alert('配置已保存！');
+        function initSettingsNav() {
+            const nav = document.getElementById('settingsNav');
+            if (!nav) return;
+            if (nav.dataset.bound !== '1') {
+                nav.dataset.bound = '1';
+                const buttons = Array.from(nav.querySelectorAll('[data-settings-target]'));
+                buttons.forEach((btn) => {
+                    btn.addEventListener('click', () => {
+                        activateSettingsPanel(btn.getAttribute('data-settings-target'));
+                    });
+                    btn.addEventListener('keydown', (event) => {
+                        if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+                        event.preventDefault();
+                        const index = buttons.indexOf(btn);
+                        const next = buttons[(index + (event.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length];
+                        next.focus();
+                        activateSettingsPanel(next.getAttribute('data-settings-target'));
+                    });
+                });
+            }
+            let saved = null;
+            try { saved = localStorage.getItem('monitor_settings_tab'); } catch (err) {}
+            const valid = saved && document.getElementById(saved) ? saved : 'settings-db';
+            activateSettingsPanel(valid, false);
+        }
+
+        function getDatabaseFormValues() {
+            const read = (id) => {
+                const el = document.getElementById(id);
+                return el ? String(el.value).trim() : '';
+            };
+            return {
+                mysql_host: read('mysqlHostInput'),
+                mysql_port: read('mysqlPortInput'),
+                mysql_user: read('mysqlUserInput'),
+                mysql_password: read('mysqlPasswordInput'),
+                mysql_database: read('mysqlDatabaseInput'),
+                database_backend: read('dbBackendSelect') || 'mysql'
+            };
+        }
+
+        function fillDatabaseForm(cfg) {
+            if (!cfg) return;
+            const setValue = (id, value) => {
+                const el = document.getElementById(id);
+                if (el && value !== undefined && value !== null && String(value) !== '') el.value = String(value);
+            };
+            setValue('mysqlHostInput', cfg.mysql_host || cfg.host);
+            setValue('mysqlPortInput', cfg.mysql_port || cfg.port);
+            setValue('mysqlUserInput', cfg.mysql_user || cfg.user);
+            setValue('mysqlDatabaseInput', cfg.mysql_database || cfg.database);
+            const backend = cfg.database_backend || cfg.backend;
+            const select = document.getElementById('dbBackendSelect');
+            if (select && backend) select.value = String(backend).toLowerCase() === 'sqlite' ? 'sqlite' : 'mysql';
+        }
+
+        function setDbMessage(message, type) {
+            const el = document.getElementById('dbMessage');
+            if (!el) return;
+            el.textContent = message || '';
+            el.className = 'inline-message' + (type ? ' ' + type : '');
+        }
+
+        function applyDatabaseStatus(data) {
+            const chip = document.getElementById('dbStatusChip');
+            const text = document.getElementById('dbStatusText');
+            if (!data || typeof data !== 'object') {
+                if (chip) { chip.className = 'tag bad'; chip.textContent = '状态未知'; }
+                if (text) text.textContent = '数据库状态数据无效，请稍后重试';
+                return;
+            }
+            const backend = String(data.backend || 'mysql').toLowerCase();
+            const connected = !!data.connected;
+            const fallback = !!data.fallback;
+            const label = backend === 'sqlite' ? 'SQLite' : 'MySQL';
+            if (chip) {
+                if (connected) {
+                    chip.className = 'tag ok';
+                    chip.textContent = '已连接';
+                } else if (fallback) {
+                    chip.className = 'tag warn';
+                    chip.textContent = '已回退 SQLite';
+                } else {
+                    chip.className = 'tag bad';
+                    chip.textContent = '连接失败';
+                }
+            }
+            if (text) {
+                const parts = [label];
+                let address = data.host ? String(data.host) : '';
+                if (data.port) address = address ? address + ':' + data.port : String(data.port);
+                if (address) parts.push(address);
+                if (data.database) parts.push('库 ' + data.database);
+                if (data.server_version) parts.push('版本 ' + data.server_version);
+                if (typeof data.table_count === 'number') parts.push(data.table_count + ' 张表');
+                if (data.fallback && data.message) parts.push(data.message);
+                text.textContent = parts.filter(Boolean).join(' · ');
+            }
+            fillDatabaseForm(data);
+        }
+
+        async function loadDatabaseStatus() {
+            const chip = document.getElementById('dbStatusChip');
+            const text = document.getElementById('dbStatusText');
+            try {
+                const res = await fetch('/api/database/status', { cache: 'no-store' });
+                if (!res.ok) throw new Error('接口返回 ' + res.status);
+                const data = await res.json();
+                applyDatabaseStatus(data);
+            } catch (err) {
+                if (chip) { chip.className = 'tag bad'; chip.textContent = '状态未知'; }
+                if (text) text.textContent = '无法读取数据库状态：' + (err && err.message ? err.message : '接口暂不可用');
+            }
+        }
+
+        async function testDatabaseConnection() {
+            const btn = document.getElementById('dbTestBtn');
+            if (btn && btn.disabled) return;
+            const values = getDatabaseFormValues();
+            if (values.mysql_port && (!/^\d+$/.test(values.mysql_port) || Number(values.mysql_port) < 1 || Number(values.mysql_port) > 65535)) {
+                setDbMessage('端口需为 1-65535 之间的整数', 'error');
+                showToast('端口格式不正确，请检查', 'error');
+                return;
+            }
+            const originalText = btn ? btn.textContent : '测试连接';
+            if (btn) { btn.disabled = true; btn.textContent = '测试中…'; }
+            setDbMessage('正在测试数据库连接…', 'info');
+            try {
+                const res = await fetch('/api/database/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        mysql_host: values.mysql_host,
+                        mysql_port: values.mysql_port,
+                        mysql_user: values.mysql_user,
+                        mysql_password: values.mysql_password,
+                        mysql_database: values.mysql_database
+                    })
+                });
+                let data = {};
+                try { data = await res.json(); } catch (e) { data = {}; }
+                if (res.ok && data.success) {
+                    const detail = [];
+                    if (data.server_version) detail.push('版本 ' + data.server_version);
+                    if (typeof data.tables === 'number') detail.push(data.tables + ' 张表');
+                    const message = (data.message || '数据库连接成功') + (detail.length ? '（' + detail.join(' · ') + '）' : '');
+                    setDbMessage(message, 'success');
+                    showToast('数据库连接成功', 'success');
+                } else {
+                    setDbMessage(data.message || ('数据库连接失败（HTTP ' + res.status + '）'), 'error');
+                    showToast('数据库连接失败', 'error');
+                }
+            } catch (err) {
+                setDbMessage('数据库连接失败：' + (err && err.message ? err.message : '网络异常'), 'error');
+                showToast('数据库连接失败', 'error');
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = originalText; }
+                loadDatabaseStatus();
+            }
+        }
+
+        async function saveDatabaseConfig() {
+            const btn = document.getElementById('dbSaveBtn');
+            if (btn && btn.disabled) return;
+            const values = getDatabaseFormValues();
+            if (!values.mysql_host) {
+                setDbMessage('请填写 MySQL 主机地址', 'error');
+                showToast('请填写 MySQL 主机地址', 'error');
+                return;
+            }
+            if (!values.mysql_port || !/^\d+$/.test(values.mysql_port) || Number(values.mysql_port) < 1 || Number(values.mysql_port) > 65535) {
+                setDbMessage('端口需为 1-65535 之间的整数', 'error');
+                showToast('端口格式不正确，请检查', 'error');
+                return;
+            }
+            if (!values.mysql_user) {
+                setDbMessage('请填写 MySQL 用户名', 'error');
+                showToast('请填写 MySQL 用户名', 'error');
+                return;
+            }
+            if (!values.mysql_database) {
+                setDbMessage('请填写数据库名', 'error');
+                showToast('请填写数据库名', 'error');
+                return;
+            }
+            const payload = {
+                database_backend: values.database_backend,
+                mysql_host: values.mysql_host,
+                mysql_port: Number(values.mysql_port),
+                mysql_user: values.mysql_user,
+                mysql_database: values.mysql_database
+            };
+            if (values.mysql_password) payload.mysql_password = values.mysql_password;
+            const originalText = btn ? btn.textContent : '保存并初始化';
+            if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
+            setDbMessage('正在保存数据库配置并初始化连接…', 'info');
+            try {
+                const res = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                let data = {};
+                try { data = await res.json(); } catch (e) { data = {}; }
+                if (!res.ok || data.success === false) {
+                    throw new Error(data.message || ('保存失败（HTTP ' + res.status + '）'));
+                }
+                setDbMessage(data.message || '数据库配置已保存并完成初始化', 'success');
+                showToast('数据库配置已保存', 'success');
+                const passwordInput = document.getElementById('mysqlPasswordInput');
+                if (passwordInput) passwordInput.value = '';
+                loadDatabaseStatus();
+            } catch (err) {
+                setDbMessage('保存失败：' + (err && err.message ? err.message : '网络异常'), 'error');
+                showToast('数据库配置保存失败', 'error');
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = originalText; }
+            }
+        }
+
+        async function saveSettings() {
+            const readValue = (id) => {
+                const el = document.getElementById(id);
+                return el ? String(el.value).trim() : '';
+            };
+            const readChecked = (id, fallback) => {
+                const el = document.getElementById(id);
+                return el ? el.checked : fallback;
+            };
+            const payload = {
+                ollama_url: readValue('ollamaApiUrlSettings') || readValue('ollamaApiUrl') || 'http://localhost:11434',
+                ollama_model: readValue('ollamaModel'),
+                feishu_webhook: readValue('feishuWebhook'),
+                feishu_verification_token: readValue('feishuToken'),
+                feishu_event_url: readValue('feishuEventUrl'),
+                feishu_forward_ai_replies: readChecked('feishuForwardReplies', true),
+                feishu_receive_group_messages: readChecked('feishuReceiveMessages', true)
+            };
+            try {
+                localStorage.setItem('monitor_ollamaUrl', payload.ollama_url);
+                localStorage.setItem('monitor_ollamaModel', payload.ollama_model);
+                localStorage.setItem('monitor_feishuWebhook', payload.feishu_webhook);
+                localStorage.setItem('monitor_feishuToken', payload.feishu_verification_token);
+                localStorage.setItem('monitor_feishuEventUrl', payload.feishu_event_url);
+                const res = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                let data = {};
+                try { data = await res.json(); } catch (e) { data = {}; }
+                if (!res.ok || data.success === false) {
+                    throw new Error(data.message || ('保存失败（HTTP ' + res.status + '）'));
+                }
+                showToast('配置已保存', 'success');
+            } catch (err) {
+                showToast('保存失败：' + (err && err.message ? err.message : '网络异常'), 'error');
+            }
         }
 
         async function testFeishuWebhook() {
@@ -4448,47 +5373,38 @@
                     })
                 });
                 const data = await res.json();
-                alert(data.message || (data.success ? '测试消息已发送' : '测试消息发送失败'));
+                showToast(data.message || (data.success ? '测试消息已发送' : '测试消息发送失败'), data.success ? 'success' : 'error');
             } catch (e) {
-                alert('测试消息发送失败：' + e.message);
+                showToast('测试消息发送失败：' + e.message, 'error');
             }
         }
 
         async function loadSystemSettings() {
-            const apiUrl = document.getElementById('apiUrl').value || 'http://localhost:8000';
             try {
                 ensureAlarmWindowInput();
-                const res = await fetch(`${apiUrl}/api/settings`);
+                loadDatabaseStatus();
+                const res = await fetch('/api/settings', { cache: 'no-store' });
                 if (!res.ok) return;
                 const settings = await res.json();
-                if (settings.ollama_model) document.getElementById('ollamaModel').value = settings.ollama_model;
-                if (settings.feishu_webhook) document.getElementById('feishuWebhook').value = settings.feishu_webhook;
-                if (settings.feishu_verification_token) document.getElementById('feishuToken').value = settings.feishu_verification_token;
-                if (settings.database_backend) document.getElementById('databaseBackend').value = settings.database_backend;
-                if (settings.postgres_dsn) document.getElementById('postgresDsn').value = settings.postgres_dsn;
-                if (settings.supabase_url) document.getElementById('supabaseUrl').value = settings.supabase_url;
-                if (settings.supabase_key) document.getElementById('supabaseKey').value = settings.supabase_key;
-                document.getElementById('supabaseStorageBucket').value = settings.supabase_storage_bucket || 'device-models';
+                const setValue = (id, value) => {
+                    const el = document.getElementById(id);
+                    if (el && value !== undefined && value !== null && String(value) !== '') el.value = value;
+                };
+                if (settings.ollama_model) setValue('ollamaModel', settings.ollama_model);
+                if (settings.ollama_url) {
+                    setValue('ollamaApiUrl', settings.ollama_url);
+                    setValue('ollamaApiUrlSettings', settings.ollama_url);
+                }
+                if (settings.feishu_webhook) setValue('feishuWebhook', settings.feishu_webhook);
+                if (settings.feishu_verification_token) setValue('feishuToken', settings.feishu_verification_token);
+                if (settings.feishu_event_url) setValue('feishuEventUrl', settings.feishu_event_url);
+                const feishuForward = document.getElementById('feishuForwardReplies');
+                if (feishuForward) feishuForward.checked = settings.feishu_forward_ai_replies !== false;
+                const feishuReceive = document.getElementById('feishuReceiveMessages');
+                if (feishuReceive) feishuReceive.checked = settings.feishu_receive_group_messages !== false;
                 applyThresholdSettings(settings);
                 normalizeDevices(settings);
-                document.getElementById('feishuForwardReplies').checked = settings.feishu_forward_ai_replies !== false;
-                document.getElementById('feishuReceiveMessages').checked = settings.feishu_receive_group_messages !== false;
-                const localPostgresDsn = localStorage.getItem('monitor_postgresDsn') || '';
-                if (!settings.postgres_dsn && localPostgresDsn) {
-                    document.getElementById('postgresDsn').value = localPostgresDsn;
-                    document.getElementById('databaseBackend').value = 'postgres';
-                    await fetch(`${apiUrl}/api/settings`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            database_backend: 'postgres',
-                            postgres_dsn: localPostgresDsn,
-                            supabase_url: document.getElementById('supabaseUrl').value,
-                            supabase_key: document.getElementById('supabaseKey').value,
-                            supabase_storage_bucket: document.getElementById('supabaseStorageBucket').value || 'device-models'
-                        })
-                    }).catch(e => console.warn('恢复本地数据库配置失败:', e));
-                }
+                fillDatabaseForm(settings);
                 loadRagDocuments();
                 loadSkills();
             } catch (e) {
@@ -4516,41 +5432,112 @@
             if (lastLiveSensorData) handleSensorData(lastLiveSensorData);
         }
 
+        function readThresholdValue(inputId, errorId, label, min, max) {
+            const input = document.getElementById(inputId);
+            const errorEl = document.getElementById(errorId);
+            const raw = input ? String(input.value).trim() : '';
+            const value = Number(raw);
+            let error = '';
+            if (raw === '') {
+                error = '请输入' + label;
+            } else if (!Number.isFinite(value)) {
+                error = label + '必须是数字';
+            } else if (value < min || value > max) {
+                error = label + '需在 ' + min + ' - ' + max + ' 之间';
+            }
+            if (input) input.classList.toggle('is-invalid', !!error);
+            if (errorEl) {
+                errorEl.textContent = error;
+                errorEl.className = 'input-error-text' + (error ? ' show' : '');
+            }
+            return { ok: !error, value };
+        }
+
         async function syncMonitorSettings(showMessage = true) {
             ensureAlarmWindowInput();
+            const temperature = readThresholdValue('tempThreshold', 'tempThresholdError', '温度上限', 0, 150);
+            const humidity = readThresholdValue('humidThreshold', 'humidThresholdError', '湿度上限', 0, 100);
+            const vibration = readThresholdValue('vibThreshold', 'vibThresholdError', '振动阈值', 0, 50);
+            const messageEl = document.getElementById('thresholdMessage');
+            if (!temperature.ok || !humidity.ok || !vibration.ok) {
+                if (messageEl) {
+                    messageEl.className = 'inline-message error';
+                    messageEl.textContent = '阈值输入不合法，请检查标红的输入框后再保存';
+                }
+                showToast('阈值输入不合法，未提交保存', 'error');
+                return false;
+            }
             currentThresholds = {
-                temperature: Number(document.getElementById('tempThreshold').value || 40),
-                humidity: Number(document.getElementById('humidThreshold').value || 80),
-                vibration: Number(document.getElementById('vibThreshold').value || 0.5)
+                temperature: temperature.value,
+                humidity: humidity.value,
+                vibration: vibration.value
             };
+            const slider = document.getElementById('anomalyCountSlider');
+            const windowInput = document.getElementById('alarmWindowSeconds');
             currentAlarmSettings = {
-                alarm_trigger_count: Number(document.getElementById('anomalyCountSlider').value || 3),
-                alarm_window_seconds: Number(document.getElementById('alarmWindowSeconds')?.value || 60)
+                alarm_trigger_count: Number(slider ? slider.value : 3),
+                alarm_window_seconds: Number(windowInput ? windowInput.value : 60)
             };
-            const apiUrl = document.getElementById('apiUrl').value || 'http://localhost:8000';
-            const res = await fetch(`${apiUrl}/api/settings`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    thresholds: currentThresholds,
-                    alarm_trigger_count: currentAlarmSettings.alarm_trigger_count,
-                    alarm_window_seconds: currentAlarmSettings.alarm_window_seconds
-                })
-            });
-            if (!res.ok) throw new Error('保存监控设置失败');
-            if (showMessage) alert('监控设置已保存并立即生效');
+            if (messageEl) {
+                messageEl.className = 'inline-message info';
+                messageEl.textContent = '正在保存阈值与报警设置…';
+            }
+            try {
+                const res = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        thresholds: currentThresholds,
+                        alarm_trigger_count: currentAlarmSettings.alarm_trigger_count,
+                        alarm_window_seconds: currentAlarmSettings.alarm_window_seconds
+                    })
+                });
+                let data = {};
+                try { data = await res.json(); } catch (e) { data = {}; }
+                if (!res.ok || data.success === false) {
+                    throw new Error(data.message || ('保存失败（HTTP ' + res.status + '）'));
+                }
+                if (messageEl) {
+                    messageEl.className = 'inline-message success';
+                    messageEl.textContent = '阈值与报警设置已保存并立即生效';
+                }
+                if (showMessage) showToast('阈值与报警设置已保存', 'success');
+                if (lastLiveSensorData) handleSensorData(lastLiveSensorData);
+                return true;
+            } catch (err) {
+                if (messageEl) {
+                    messageEl.className = 'inline-message error';
+                    messageEl.textContent = '保存失败：' + (err && err.message ? err.message : '网络异常');
+                }
+                showToast('阈值保存失败', 'error');
+                return false;
+            }
         }
 
         function saveThresholds() {
-            syncMonitorSettings(true).catch(e => alert(e.message));
+            syncMonitorSettings(true);
         }
 
         function saveAlertSettings() {
-            syncMonitorSettings(true).catch(e => alert(e.message));
+            syncMonitorSettings(true);
         }
 
         function saveMapSettings() {
-            alert('地图配置已保存！');
+            const readValue = (id) => {
+                const el = document.getElementById(id);
+                return el ? String(el.value).trim() : '';
+            };
+            const longitude = Number(readValue('mapCenterLng') || 116.397428);
+            const latitude = Number(readValue('mapCenterLat') || 39.90923);
+            if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+                showToast('地图中心点经度需在 -180 - 180 之间', 'error');
+                return;
+            }
+            if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+                showToast('地图中心点纬度需在 -90 - 90 之间', 'error');
+                return;
+            }
+            showToast('地图配置已保存', 'success');
             map = null;
         }
 
@@ -4572,32 +5559,30 @@
         }
 
         window.addEventListener('load', () => {
-            const savedApiUrl = localStorage.getItem('monitor_apiUrl');
-            if (savedApiUrl) document.getElementById('apiUrl').value = savedApiUrl;
+            const savedOllamaUrl = localStorage.getItem('monitor_ollamaUrl');
+            if (savedOllamaUrl) {
+                const ollamaInput = document.getElementById('ollamaApiUrl');
+                if (ollamaInput) ollamaInput.value = savedOllamaUrl;
+                const settingsOllamaInput = document.getElementById('ollamaApiUrlSettings');
+                if (settingsOllamaInput) settingsOllamaInput.value = savedOllamaUrl;
+            }
+            localStorage.removeItem('monitor_apiUrl');
+            const apiBaseInput = document.getElementById('apiUrl');
+            if (apiBaseInput && !apiBaseInput.value.trim()) apiBaseInput.value = location.origin;
             const savedFeishuWebhook = localStorage.getItem('monitor_feishuWebhook');
             if (savedFeishuWebhook) document.getElementById('feishuWebhook').value = savedFeishuWebhook;
             const savedFeishuToken = localStorage.getItem('monitor_feishuToken');
             if (savedFeishuToken) document.getElementById('feishuToken').value = savedFeishuToken;
             const savedFeishuEventUrl = localStorage.getItem('monitor_feishuEventUrl');
             if (savedFeishuEventUrl) document.getElementById('feishuEventUrl').value = savedFeishuEventUrl;
-            const savedDatabaseBackend = localStorage.getItem('monitor_databaseBackend');
-            if (savedDatabaseBackend) document.getElementById('databaseBackend').value = savedDatabaseBackend;
-            const savedPostgresDsn = localStorage.getItem('monitor_postgresDsn');
-            if (savedPostgresDsn) document.getElementById('postgresDsn').value = savedPostgresDsn;
-            const savedSupabaseUrl = localStorage.getItem('monitor_supabaseUrl');
-            if (savedSupabaseUrl) document.getElementById('supabaseUrl').value = savedSupabaseUrl;
-            const savedSupabaseKey = localStorage.getItem('monitor_supabaseKey');
-            if (savedSupabaseKey) document.getElementById('supabaseKey').value = savedSupabaseKey;
-            const savedStorageBucket = localStorage.getItem('monitor_supabaseStorageBucket');
-            document.getElementById('supabaseStorageBucket').value = savedStorageBucket || 'device-models';
             const eventUrlEl = document.getElementById('feishuEventUrl');
             if (eventUrlEl && !eventUrlEl.value) {
                 const apiUrl = document.getElementById('apiUrl').value || window.location.origin;
                 eventUrlEl.value = apiUrl.replace(/\/$/, '') + '/api/feishu/events';
             }
+            initSettingsNav();
             normalizeDevices({ devices: [deviceInfo], selected_device_id: deviceInfo.id, device_info: deviceInfo });
             loadSystemSettings();
-            
             initRealtimeChart();
             connectWebSocket();
             startSensorPolling();

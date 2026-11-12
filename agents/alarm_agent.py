@@ -37,7 +37,9 @@ class AlarmAgent(BaseAgent):
 - 列出报警时标注时间、类型、级别
 - 分析原因时结合当前传感器数据和阈值配置
 - 给出具体的处置建议（如检查设备、调整阈值、联系维修）
-- 用中文回复，专业简洁"""
+- 若实时传感器数据不可用（返回 error/unavailable），只能说明「当前缺少实时数据，无法判断设备状态」，
+  建议检查网关、传感器供电与网络；严禁据此推断设备故障、给出停产/应急响应等结论
+- 用中文回复，专业简洁，结论克制"""
 
     async def execute(
         self, message: str, intent: Intent, context: Dict[str, Any]
@@ -70,7 +72,9 @@ class AlarmAgent(BaseAgent):
         messages = self.build_messages(message, alarm_context)
         try:
             resp = self.llm.chat(messages)
-            content = resp.content
+            content = (resp.content or "").strip()
+            if not content:
+                content = self._format_fallback(alerts, thresholds)
         except Exception as e:
             logger.error(f"AlarmAgent LLM 调用失败: {e}")
             content = self._format_fallback(alerts, thresholds)

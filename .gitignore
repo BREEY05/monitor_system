@@ -10,7 +10,14 @@ env/
 
 # Local runtime data
 config.json
+config.local.json
+.local-mysql/
+pip/
+output/
+figures/*.png
+
 monitor_data.db
+data/
 *.db
 *.sqlite
 *.sqlite3
@@ -37,4 +44,12 @@ build/
 .mypy_cache/
 .local-tools/
 output/playwright/
+
+# Flutter
+mobile/.dart_tool/
+mobile/build/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/android/.gradle/
+mobile/android/local.properties
 .playwright-cli/

@@ -1,0 +1,35 @@
+# PULSE · 反代配置（Caddy 2）
+# 安装：sudo cp deploy/Caddyfile /etc/caddy/Caddyfile && sudo systemctl reload caddy
+# 前提：pulse.ainavi.online 的 A 记录已指向本机公网 IP
+
+pulse.ainavi.online {
+	encode zstd gzip
+
+	# 3D 模型上传上限（后端限制 80MB，这里留余量）
+	request_body {
+		max_size 100MB
+	}
+
+	reverse_proxy 127.0.0.1:8000 {
+		transport http {
+			# AI 对话可能跑 10s+，避免长请求被掐断
+			read_timeout 120s
+			write_timeout 120s
+		}
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		X-Frame-Options SAMEORIGIN
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+
+	log {
+		output file /var/log/caddy/pulse.log {
+			roll_size 50MiB
+			roll_keep 5
+		}
+	}
+}

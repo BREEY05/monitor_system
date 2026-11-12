@@ -34,8 +34,10 @@
 ### 设备3D模型
 - **模型上传**：支持上传设备 3D 模型文件（GLB/GLTF/BIN）
 - **设备关联**：支持将模型与具体设备关联
-- **本地/云端存储**：支持本地存储或 Supabase Storage 云端存储
-- **WebGL 渲染**：使用 Three.js 在浏览器中预览 3D 模型
+- **本地存储**：模型上传后保存在 static/uploads/device_models/，随项目本地部署
+- **WebGL 渲染**：使用 Three.js 在数字孪生页渲染 7 台设备（CNC 加工中心、工业传感器、泵组试验台、六轴机械臂、传送带线、配电控制柜、工业冷却风机）
+- **内置模型**：7 个 GLB 模型均保存在 static/uploads/device_models/，无外网依赖
+- **前端依赖本地化**：ECharts、Three.js、es-module-shims 均已放入 static/vendor/，离线环境可正常打开
 
 ### 飞书集成
 - **消息推送**：报警信息自动推送到飞书群（Webhook）
@@ -66,8 +68,8 @@
 | 3D渲染 | Three.js + WebGL |
 | 地图 | 高德地图 JavaScript API + Web Service API |
 | 飞书 | lark-oapi SDK (WebSocket 长连接模式) |
-| 数据库 | SQLite（本地演示）/ PostgreSQL（Supabase 正式部署） |
-| 外部存储 | Supabase Storage（设备模型云端存储） |
+| 数据库 | MySQL 8.0（默认，连接失败自动回退 SQLite） |
+| 模型存储 | 本地文件系统 static/uploads/device_models/ |
 | 联网搜索 | DuckDuckGo Search / LangChain Tools |
 | Agent 框架 | 自研多 Agent 协作框架（Orchestrator + 专业子 Agent） |
 
@@ -431,7 +433,7 @@ Content-Type: application/json
 
 - 多设备注册：`CONFIG["devices"]` 列表
 - 设备信息：id、name、latitude、longitude、registered_at、status、model_url
-- 3D 模型支持本地存储或 Supabase Storage 云端存储
+- 3D 模型统一保存在本地 static/uploads/device_models/，支持 GLB/GLTF/BIN
 
 ---
 
@@ -478,12 +480,13 @@ Content-Type: application/json
 ### 设备模型
 | 接口 | 方法 | 说明 |
 |------|------|------|
-| `/api/device/model` | POST | 上传设备 3D 模型 |
+| `/api/device/model` | POST | 上传设备 3D 模型（本地存储） |
 
 ### 数据库
 | 接口 | 方法 | 说明 |
 |------|------|------|
-| `/api/database/test` | POST | 测试 PostgreSQL 连接 |
+| `/api/database/status` | GET | 获取 MySQL 连接状态 |
+| `/api/database/test` | POST | 测试 MySQL 连接（不落盘） |
 
 ### 飞书
 | 接口 | 方法 | 说明 |
@@ -495,11 +498,175 @@ Content-Type: application/json
 | 接口 | 方法 | 说明 |
 |------|------|------|
 | `/api/camera/capture` | POST | 摄像头截图 |
-| `/api/settings` | GET/POST | 系统配置 |
+| `/api/settings` | GET/PATCH | 读取配置 / 补丁式写入（M0：经反代需 admin token，带版本号防互盖） |
 | `/api/config` | GET | 获取阈值配置 |
 | `/ws/sensor` | WebSocket | 传感器数据流 |
 
 ---
+
+## 移动端 App 后端（M0，2026-11-12）
+
+为手机 App 补充的安全层，**Web 局域网直连行为不变**。
+
+### 鉴权边界
+- 请求经反向代理（带 `X-Forwarded-For` 或 `X-Real-IP`）时，`/api/*` 与 `/ws/*` 必须携带 `Authorization: Bearer <token>`；局域网直连不强制，Web 首页照常可用。
+- `POST /api/mobile/login` 获取 token（HS256 JWT，默认 12 小时，配置项 `mobile_token_hours`）；失败限速 5 次 / 5 分钟。
+- `/api/mobile/*` 除 login/bootstrap/ping 外一律需要 token；写配置与设备接口需要 admin 角色。
+- WS 经反代时用 `?token=` 或 `Sec-WebSocket-Protocol: bearer,<token>`，否则以 1008 关闭。
+- 首次启动自动生成 admin，初始密码写入 `data/mobile_admin_credentials.txt`（也可用环境变量 `MOBILE_ADMIN_PASSWORD` 指定）；登录后请修改密码并删除该文件。
+
+### 新增接口
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/mobile/login` | POST | 账号密码登录，返回 JWT |
+| `/api/mobile/bootstrap` | GET | 公开引导（服务器信息 / 能力 / token 时长） |
+| `/api/mobile/me` / `/api/mobile/refresh` | GET / POST | 当前用户 / 续签 token |
+| `/api/mobile/config-schema` | GET | 设置页动态表单元数据（secret 只给 has_value） |
+| `/api/settings` | PATCH | 补丁式写入：`{base_version, changes, reason?}`；冲突 409、校验失败 422 |
+| `/api/settings/history` | GET | 最近 20 个配置版本（含操作者/原因/变更项） |
+| `/api/settings/rollback` | POST | 回滚到历史版本（敏感字段保持当前值） |
+| `/api/system/audit` | GET | 审计日志（admin） |
+| `/api/devices` / `/api/device` / `/api/device/{id}` | GET / POST / PATCH / DELETE | 设备 CRUD（删除至少保留 1 台） |
+| `/api/system/health` | GET | API / 数据库 / 传感器 / AI / 设备计数（不泄漏密钥） |
+| `/api/twin/scene` | GET | 数字孪生场景：分区 + 每台设备 position/rotation/state |
+
+### 运行时数据（`data/`，已 gitignore）
+- `mobile_auth.json`：JWT 密钥与账号（PBKDF2-HMAC-SHA256，210000 次迭代）
+- `config_state.json`：配置版本号 + 最近 20 个带快照的版本
+- `audit.jsonl`：登录 / 配置 / 设备写操作审计（secret 已掩码）
+- `mobile_admin_credentials.txt`：首次生成的 admin 初始密码
+- 环境变量 `PULSE_MOBILE_DATA_DIR` 可覆盖该目录（测试或多实例部署用）
+
+### 回归测试
+```bash
+python .local-tools/m0_test.py
+```
+覆盖 41 项断言：登录/错误密码/限流前置、无 token 401、反代强制鉴权、版本冲突 409、越界 422、补丁与回滚、secret `"***"` 不覆盖、设备 CRUD 与非法模型地址、twin scene 位置、health 不泄漏密钥、审计记录与掩码、篡改 token 401。测试使用临时目录，不写真实 `config.json` 与 MySQL。
+
+---
+
+## 移动端 App 前端（M1，2026-11-12）
+
+Flutter 工程位于 `mobile/`，为「PULSE · 浅色极简」六屏骨架（Mock 数据，不接后端），已通过 `flutter analyze`（0 issue）与 `flutter test`（2/2）。
+
+### 工程结构（mobile/）
+- `lib/main.dart` / `lib/app.dart`：RootShell = IndexedStack 4 tab + 固定底部 dock（中央光球 push AI 页）
+- `lib/theme/pulse_theme.dart`：设计系统（`#F4F5F7` 背景、`#FFFFFF` 卡片、`#0B1220` 墨黑、`#3D5AFE`/`#8B5CF6` 蓝紫、绿/琥珀/红语义色、tabular 数字、圆角/阴影常量）
+- `lib/screens/`：overview / ai / devices / alerts / profile / twin 六屏
+- `lib/widgets/`：PulseRing（渐变健康环）、Sparkline、PulseDock、TwinScene、TwinDetailSheet、WorkshopMap、DeviceCard 等 22 个自绘组件（无第三方 UI 依赖）
+- `lib/data/mock_data.dart`：概念稿全量中文文案与数值，M2 替换为 API 数据
+- `test/smoke_test.dart`：首屏渲染 + dock 四 tab 切换
+- `android/`：由 `flutter create` 生成，applicationId `com.pulse.pulse_mobile`，label `PULSE`，compileSdk/targetSdk 跟随 Flutter 3.50（36）
+
+### 本机工具链（D:\pulse-toolchain，工作区外）
+| 组件 | 版本 | 说明 |
+|------|------|------|
+| Flutter | 3.50.0 stable | zip 来自 storage.flutter-io.cn 镜像 |
+| Dart | 3.14.0 | 随 Flutter |
+| JDK | Temurin 17.0.21+9 | 清华 Adoptium 镜像 |
+| Android SDK | platform 35/36、build-tools 35/36、platform-tools | cmdline-tools 11076708 |
+| Gradle | 9.5.0 | wrapper 指向华为云镜像；依赖走阿里云 maven 镜像 |
+
+环境变量脚本：`D:\pulse-toolchain\env.ps1`（JAVA_HOME / ANDROID_HOME / GRADLE_USER_HOME / FLUTTER_STORAGE_BASE_URL / PUB_HOSTED_URL）。安装脚本：`.local-tools/setup_toolchain.ps1`。
+
+### 构建与测试
+```powershell
+. D:\pulse-toolchain\env.ps1
+cd mobile
+flutter pub get
+flutter analyze
+flutter test
+flutter build apk --debug   # 产物：mobile/build/app/outputs/flutter-apk/app-debug.apk
+```
+
+> 前端已从已废弃的 `package:flutter/material.dart` 迁移到 Flutter 3.50 的 `package:material_ui/material_ui.dart`（pubspec 增加 `material_ui` 依赖），analyze 0 issue。
+
+### 构建验证结果（2026-11-12）
+| 检查 | 结果 |
+|------|------|
+| `flutter analyze` | No issues found |
+| `flutter test` | 2/2 All tests passed |
+| `flutter build apk --debug` | OK，`app-debug.apk` 174.3 MB（含 3 个 ABI 的 debug 引擎） |
+| `flutter build apk --release --split-per-abi` | OK：`app-armeabi-v7a-release.apk` 13.5 MB / `app-arm64-v8a-release.apk` 15.7 MB / `app-x86_64-release.apk` 17.0 MB |
+| `flutter build web --release` | OK（用于在 PC 上快速预览同一套 Dart UI，截图见下） |
+
+APK 元信息（aapt2）：`package=com.pulse.pulse_mobile`、`label=PULSE`、`minSdk 24`、`targetSdk 36`、`INTERNET` 权限。
+
+### 视觉验证（真机同款渲染）
+`output/mobile-mockups/app-screens-board.png` 是 Flutter 实际渲染的六屏拼图（Flutter Web 构建 + Chromium 390×844 dpr3 截图，与 Android 同一套 Dart 代码）：
+
+| 文件 | 内容 |
+|------|------|
+| `output/mobile-mockups/app-01-overview.png` … `app-06-twin.png` | 六屏单张 1170×2532 |
+| `output/mobile-mockups/app-screens-board.png` | 六屏拼图（带标题与说明） |
+
+本轮验证中修掉的真实问题：
+1. `PulseRing` 内 `Row` 用了默认 `mainAxisSize.max`，导致 "92%" 挤到环左侧、压住描边 → 改 `MainAxisSize.min`。
+2. `MiniButton` 用 `Container(alignment:)`，在 `Wrap` 里被撑满整行（三个小按钮各占一行）→ 改为 `Center(widthFactor: 1, heightFactor: 1)`，仅 `expand: true` 时拉满。
+3. `AiInsightCard` 的 `IntrinsicHeight + Row(stretch)` 低估卡片高度，底部按钮被裁 → 改 `Stack + Positioned` 画左侧渐变条。
+4. 设备卡头像用 `Icons.memory`（像齿轮）→ 改为「淡色圆底 + 同色内环 + 实心点」的状态光晕。
+5. `Sparkline` 采样锯齿明显 → 增加两次加权平滑（`(prev + 2*cur + next)/4`）。
+6. 数字孪生页提示语改为「M1 示意场景 · 可缩放」，不再宣称 M1 支持旋转/双指缩放（M2 用 WebView 接真实 Three.js）。
+
+### Gradle 依赖下载（本机踩坑记录）
+- wrapper 分发走华为云镜像（`mirrors.huaweicloud.com/gradle/gradle-9.5.0-all.zip`，约 10 MB/s）；依赖仓库顺序为阿里云 google/central/gradle-plugin → 官方仓库。
+- 官方 `gradlePluginPortal`（Cloudflare）会卡住（连接停在 CLOSE_WAIT、下载 0 字节）；`api_server` 侧无关，属于网络环境问题。
+- 已在 `mobile/android/gradle.properties` 加：`systemProp.org.gradle.internal.http.socketTimeout=60000`、`connectionTimeout=60000`、`repository.max.tentatives=3`，重试后全量下载约 760 MB 依赖，构建成功；后续增量构建约 16 s（debug）/ 70 s（release）。
+
+---
+
+## 移动端 App 前端（M2，2026-11-12）
+
+M2 把 M1 的 mock 六屏接到真实后端：**飞书扫码登录**、真实 API/WS 数据、AI 对话、数字孪生 WebView。后端接口见 `docs/m2-backend-notes.md`，设计说明见 `docs/mobile-app-spec.md` 第 17 章。
+
+### 登录：飞书扫码（账号密码兜底）
+- App 登录页「使用飞书登录」→ `GET /api/mobile/feishu/start` 拿 `authorize_url`/`state` → WebView 打开飞书授权页 → 回调页判定后 2s 轮询 `POST /api/mobile/feishu/poll` → 一次性票据换 JWT。
+- 首个登录者自动 bootstrap 为管理员并写入 `feishu_login_allowed_open_ids`；其余需在网页端把 open_id 加白名单（`GET/POST /api/mobile/feishu/allowlist`，写 `config.json` + `data/mobile_auth.json` + 审计）。
+- 局域网联调可用「管理员账号登录」（`POST /api/mobile/login`）；初始密码在 `data/mobile_admin_credentials.txt`。
+
+### 代码结构（新增/改造）
+| 文件 | 说明 |
+|---|---|
+| `lib/core/api_client.dart` | `package:http` 客户端（Web/Android 同一套代码），BaseUrl 归一化、Bearer 注入、`ApiException` |
+| `lib/core/session.dart` | token/用户/服务器持久化（shared_preferences）、启动 `bootstrap()`、后台 `refreshMe()`、401 自动登出 |
+| `lib/core/live_data.dart` | 15s 轮询 `/api/twin/overview` + `WS /ws/sensor?token=`（sensor/alert 即时刷新，断线 10s 重连）、健康分、`askAi`、`handleAlert` |
+| `lib/core/live_view.dart` | 后端 JSON → UI 模型（指标/设备/报警/洞察）；无数据统一「暂无」，折线用按 key 派生的确定性波形 |
+| `lib/app.dart` | `AuthGate`：booting→Splash、未登录→LoginScreen、已登录→RootShell（`PulseData.start()`/`stop()`） |
+| `lib/screens/` | overview/ai/devices/alerts/profile 全部换真实数据；twin 改为 WebView 承载 `/mobile/twin` |
+| `lib/widgets/reply_text.dart` | 轻量 Markdown（**加粗**、列表、`###` 标题），不引第三方依赖 |
+| `test/smoke_test.dart` | 不触网、不起计时器的 8 个测试 |
+
+### 验证结果
+| 检查 | 结果 |
+|---|---|
+| `flutter analyze` | No issues found |
+| `flutter test` | 8/8（JSON→Snapshot→LiveView、健康分、空态、登录页、总览/报警空态、Markdown 渲染） |
+| `flutter build web --release` | OK；Chromium 390×844 dpr3 截六屏：`output/mobile-mockups/m2-01-overview.png` … `m2-05-profile.png`、`m2-02-ai-chat.png`、`m2-screens-board.png` |
+| 真实接口联调 | 登录、overview、sensor WS、alerts handle、`/api/agent/chat`、`/mobile/twin` 全部走本机 uvicorn 实测 |
+| `flutter build apk --release --split-per-abi` | OK：armeabi-v7a 15.3 MB / arm64-v8a 17.5 MB / x86_64 18.8 MB |
+
+### 本轮修掉的真实问题
+1. **Web 白屏**：`dart:io HttpClient` 在 Web 抛 `Unsupported operation: Platform._version` → 全部改用 `package:http`，Web 与 Android 同一套网络代码。
+2. **AI 工具 chips 永远为空**：后端 `tool_calls` 是字符串数组，App 按 `item['tool']` 取值 → 兼容 Map/字符串并去重。
+3. **qwen3 thinking 让一次问答 100s+**：`agents/llm_provider.py` 请求加 `think: False`（不支持时回退），`/api/agent/chat` 实测 8.7–10.4s。
+4. **无数据时 AI 危言耸听**：无实时传感器数据时只允许说明「缺少实时上报、检查网关/供电/网络」，禁止推断设备故障或停产建议（`agents/alarm_agent.py`、`agents/sensor_agent.py`）。
+5. **AI 回复显示原始 Markdown 标记** → 新增 `ReplyText` 渲染。
+6. **指标卡显示「— °C」半截单位** → 无数据显示 dim 色「暂无」并隐藏单位。
+7. **7 台设备折线完全相同** → sparkline 按设备 id 派生独立波形；设备无指标时补「暂无实时数据 · 车间级指标见总览」。
+8. **报警页 0 条时高度空白** → 显示「近 7 天暂无报警」；总览空态卡片不再收缩；四个页面底部 padding 加到 150，避免被 dock 压住。
+
+### release 构建踩坑（本机 Windows）
+1. **Maven Central（Cloudflare）挂起**：`repo.maven.apache.org` 的连接长期停在 ESTABLISHED 且 0 字节，webview 相关依赖下载卡住 15 分钟 → `mobile/android/build.gradle.kts` 与 `settings.gradle.kts` 只保留阿里云 google/central/gradle-plugin 镜像 + `google()`（`dl.google.com` 走国内 CDN 正常），去掉 `mavenCentral()`/`gradlePluginPortal()`。
+2. **Kotlin 增量编译缓存关闭失败**：`Could not close incremental caches … class-fq-name-to-source.tab`（清 `build/` 后仍复现）→ `mobile/android/gradle.properties` 加 `kotlin.incremental=false`、`kotlin.incremental.android=false`。
+3. **AGP lint 在 JDK 17 崩溃**：`:webview_flutter_android:lintVitalAnalyzeRelease` 抛 `NoSuchMethodError: java.util.List.removeLast()`（lint 自身 bug）→ `mobile/android/app/build.gradle.kts` 设 `lint { checkReleaseBuilds = false; abortOnError = false }`。
+4. 依次处理后 `assembleRelease` 约 1 分钟完成，产物三个 ABI 全部生成。
+
+### M2 尚未做
+- 真机 / 鸿蒙 4 安装验证；推送通道（当前前台 WS + 飞书 webhook 兜底，厂商通道留 M4）；扫码接入设备；语音输入；release 正式签名；应用图标与启动图。
+- M3 部署：`pulse.ainavi.online` → `81.70.92.137`（Caddy 自动 HTTPS + systemd，MySQL/Ollama 只绑 127.0.0.1），尚未产出 Caddyfile / 部署脚本。
+
+---
+
 
 ## 配置文件
 
@@ -521,12 +688,13 @@ CONFIG = {
     "feishu_receive_group_messages": True,
     "feishu_forward_ai_replies": True,
 
-    # 数据库
-    "database_backend": "sqlite",
-    "postgres_dsn": "",
-    "supabase_url": "",
-    "supabase_key": "",
-    "supabase_storage_bucket": "device-models",
+    # 数据库（MySQL，失败自动回退 SQLite）
+    "database_backend": "mysql",
+    "mysql_host": "127.0.0.1",
+    "mysql_port": 3307,
+    "mysql_user": "root",
+    "mysql_password": "",
+    "mysql_database": "monitor_system",
 
     # RAG
     "rag_enabled": True,
@@ -535,12 +703,12 @@ CONFIG = {
 
     # 报警阈值
     "thresholds": {
-        "temperature": 40.0,
-        "humidity": 80.0,
+        "temperature": 31.0,
+        "humidity": 60.0,
         "vibration": 0.5
     },
-    "alarm_trigger_count": 1,
-    "alarm_window_seconds": 60,
+    "alarm_trigger_count": 3,
+    "alarm_window_seconds": 2,
     "alarm_cooldown_seconds": 300,
     "sensor_interval": 5,
 
@@ -552,12 +720,49 @@ CONFIG = {
 
 ---
 
+## MySQL 数据库
+
+项目默认使用 MySQL 8.0（连接失败自动回退 SQLite，不影响监控运行）。
+
+### 便携版启动（推荐）
+
+仓库自带启动脚本，首次运行会初始化数据目录：
+
+```powershell
+# 启动 MySQL（监听 127.0.0.1:3307，root 空密码）
+scripts\start_mysql.bat
+
+# 或直接启动应用（start.py 会自动拉起 MySQL）
+python start.py
+```
+
+- 二进制目录：`.local-mysql/mysql-8.0.42-winx64`
+- 数据目录：`.local-mysql/data`
+- 日志：`.local-mysql/mysql.out.log`、`.local-mysql/mysql.err.log`
+- 详细说明（启动/停止/重置/自定义实例）：`docs/mysql-setup.md`
+
+### 连接配置
+
+在系统设置页「数据库与存储」中填写主机、端口、用户、密码与库名：
+
+| 参数 | 默认值 |
+|------|--------|
+| 主机 | 127.0.0.1 |
+| 端口 | 3307 |
+| 用户 | root |
+| 密码 | 留空表示不修改 |
+| 数据库 | monitor_system |
+
+点击「测试连接」只验证不保存；点击「保存并初始化」会写入配置并自动建库建表。
+
+---
+
 ## 传感器阈值
 
 | 参数 | 默认阈值 | 单位 |
 |------|----------|------|
-| 温度 | 40.0 | °C |
-| 湿度 | 80.0 | %RH |
+| 温度 | 31.0 | °C |
+| 湿度 | 60.0 | %RH |
 | 振动 | 0.5 | mm/s |
 
 ---
@@ -574,6 +779,10 @@ CONFIG = {
 | `rag_documents` | RAG 知识库文档元数据 |
 | `rag_chunks` | RAG 知识库文本片段与 embedding |
 | `skills` | 上传的 Skill 内容 |
+| `devices` | 设备注册信息 |
+| `app_settings` | 系统配置持久化 |
+| `risk_records` | 风险分析记录 |
+| `prediction_records` | 预测记录 |
 
 ---
 
