@@ -1,0 +1,8 @@
+[Unit]
+Description=PULSE tunnel watchdog (probe local engine via frp)
+After=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/pulse-watch.env
+ExecStart=/usr/local/bin/pulse-tunnel-watch

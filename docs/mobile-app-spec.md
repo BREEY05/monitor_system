@@ -79,6 +79,8 @@
 
 ## 5. 公网部署（有公网 IP 的落地方式）
 
+> **2026-11-12 更新**：实际落地改为「云服务器只做公网入口（nginx + Let's Encrypt + frps），后端 / MySQL / Ollama 全部留在本机，通过 frp 反向隧道对外」。完整步骤见 `docs/deploy-frp-local-engine.md`，本文下面的 Caddy 方案仅作历史参考。
+
 ### 5.1 推荐：域名 + Caddy 自动 HTTPS
 Let's Encrypt **不给纯 IP 签证书**，所以需要：
 1. 一个域名（如 `monitor.example.com`），A 记录指向公网 IP；
@@ -498,6 +500,6 @@ App 侧新增 `widgets/reply_text.dart` 轻量 Markdown（加粗、列表、`###
 - 真机 / 鸿蒙 4 安装验证（当前只有 Web 渲染 + APK 构建验证）。
 - 推送通道：App 前台「报警推送」开关目前只影响本地提示，服务端仍是飞书 webhook 兜底；厂商通道（华为/小米/极光）留到 M4。
 - 扫码接入设备、语音输入、release 正式签名、应用图标/启动图。
-- M3 部署：`pulse.ainavi.online → 81.70.92.137`（Caddy 自动 HTTPS、systemd、MySQL/Ollama 只绑内网），Caddyfile / compose / 部署文档尚未产出。
+- M3 部署：已产出 `deploy/frp/`（云 frps 安装脚本、Windows frpc 与后端开机自启脚本、隧道看门狗）、`deploy/nginx/pulse.ainavi.online.conf`、`docs/deploy-frp-local-engine.md`；架构为云入口 + 本机引擎（Caddy 方案废弃）。
 
 

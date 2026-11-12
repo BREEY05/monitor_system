@@ -1,0 +1,21 @@
+# PULSE · frps 配置（云服务器侧，只做公网入口）
+# 安装位置：/etc/frp/frps.toml（由 deploy/frp/install-frps.sh 自动生成，token 随机生成）
+# 公网只需要放行 TCP 7000（frp 控制端口），不需要 18000 对外。
+
+bindAddr = "0.0.0.0"
+bindPort = 7000
+
+auth.method = "token"
+auth.token = "REPLACE_WITH_LONG_RANDOM_TOKEN"
+
+# 只允许分配 18000 这一个远端端口，避免这台机器被当成任意 TCP 转发器
+allowPorts = [{ start = 18000, end = 18000 }]
+
+# 隧道落地端口只监听本机，只有 nginx 能访问
+proxyBindAddr = "127.0.0.1"
+
+# 强制客户端走 TLS（frpc 侧 transport.tls.enable）
+transport.tls.force = true
+
+log.to = "console"
+log.level = "info"

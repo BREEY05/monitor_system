@@ -1,0 +1,25 @@
+# PULSE · frpc 配置（你自己的 Windows 电脑侧）
+# 由 deploy/frp/install-frpc.ps1 自动生成到 C:\pulse\frp\frpc.toml，一般不用手改。
+# 也可以从 frp release 包里手动复制改。
+
+serverAddr = "81.70.92.137"       # 云服务器公网 IP
+serverPort = 7000
+auth.method = "token"
+auth.token = "REPLACE_WITH_TOKEN_FROM_FRPS"
+
+transport.tls.enable = true
+log.to = "console"
+log.level = "info"
+
+[[proxies]]
+name = "pulse-api"
+type = "tcp"
+localIP = "127.0.0.1"
+localPort = 8000                 # 本机 api_server.py / uvicorn
+remotePort = 18000               # 云端 nginx 反代到这个端口
+
+# 本机后端没起来时 frp 会标记为不可用，nginx 直接返回离线页
+healthCheck.type = "tcp"
+healthCheck.timeoutSeconds = 3
+healthCheck.maxFailed = 3
+healthCheck.intervalSeconds = 10

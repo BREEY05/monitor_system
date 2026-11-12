@@ -1,5 +1,9 @@
 # 部署到云服务器（pulse.ainavi.online）
 
+> ⚠️ **本方案已不采用（2026-11-12）**。云服务器只有 2 核 1.9G，跑不动 Ollama，而且 80/443 已被现有 nginx 占用。
+> 现行架构：**云 nginx + frps 只做公网入口，后端 / MySQL / Ollama 留在本机**，见 `docs/deploy-frp-local-engine.md`。
+> 下文保留作为「全部搬上云」的参考（例如未来换一台能跑模型的服务器）。
+
 目标拓扑：
 
 ```

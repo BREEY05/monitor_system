@@ -1,0 +1,20 @@
+# PULSE · frps systemd 单元
+# 安装：
+#   sudo cp deploy/frp/frps.service /etc/systemd/system/frps.service
+#   sudo systemctl daemon-reload && sudo systemctl enable --now frps
+[Unit]
+Description=frp server (PULSE public entry)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/frps -c /etc/frp/frps.toml
+Restart=always
+RestartSec=3
+LimitNOFILE=1048576
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

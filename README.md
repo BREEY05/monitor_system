@@ -663,7 +663,7 @@ M2 把 M1 的 mock 六屏接到真实后端：**飞书扫码登录**、真实 AP
 
 ### M2 尚未做
 - 真机 / 鸿蒙 4 安装验证；推送通道（当前前台 WS + 飞书 webhook 兜底，厂商通道留 M4）；扫码接入设备；语音输入；release 正式签名；应用图标与启动图。
-- M3 部署：`pulse.ainavi.online` → `81.70.92.137`（Caddy 自动 HTTPS + systemd，MySQL/Ollama 只绑 127.0.0.1），尚未产出 Caddyfile / 部署脚本。
+- M3 部署：架构已改为「**公网入口 + 本机引擎**」——云服务器只跑 nginx（Let's Encrypt）+ frps，后端 / MySQL / Ollama 全部留在本机，通过 frp 隧道对外。部署包：`deploy/frp/`（云 `install-frps.sh`、Windows `install-frpc.ps1` / `install-backend-task.ps1`、`tunnel-watch.sh`）、`deploy/nginx/pulse.ainavi.online.conf`，步骤见 `docs/deploy-frp-local-engine.md`；`docs/deploy-ainavi.md`（全云部署 + Caddy）已不采用。
 
 ---
 

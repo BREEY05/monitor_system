@@ -1,0 +1,129 @@
+<#
+.SYNOPSIS
+  PULSE · 在 Windows 上安装 frpc，并注册为开机自启任务。
+
+.EXAMPLE
+  powershell -ExecutionPolicy Bypass -File deploy\frp\install-frpc.ps1 -ServerAddr 81.70.92.137 -Token 3f9c...
+
+.NOTES
+  需要管理员权限（注册 SYSTEM 启动任务）。
+  默认安装到 C:\pulse\frp，连接 127.0.0.1:8000，映射到云端 18000。
+#>
+param(
+    [Parameter(Mandatory = $true)][string]$ServerAddr,
+    [Parameter(Mandatory = $true)][string]$Token,
+    [string]$Version = "",
+    [string]$InstallDir = "C:\pulse\frp",
+    [int]$RemotePort = 18000,
+    [int]$LocalPort = 8000,
+    [string]$TaskName = "PULSE-frpc"
+)
+
+$ErrorActionPreference = "Stop"
+
+function Info($m) { Write-Host "[frpc] $m" -ForegroundColor Cyan }
+function Die($m)  { Write-Host "[frpc] $m" -ForegroundColor Red; exit 1 }
+
+$identity = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+if (-not $identity.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Die "请用管理员 PowerShell 运行（右键 → 以管理员身份运行）"
+}
+
+if ([string]::IsNullOrWhiteSpace($Version)) {
+    $Version = "v0.72.0"
+    try {
+        $latest = Invoke-RestMethod -Uri "https://api.github.com/repos/fatedier/frp/releases/latest" -TimeoutSec 15 -Headers @{ "User-Agent" = "pulse-installer" }
+        if ($latest.tag_name) { $Version = $latest.tag_name }
+    } catch {
+        Info "获取最新版本失败，使用内置版本 $Version"
+    }
+}
+$ver = $Version.TrimStart("v")
+Info "frp 版本：$Version"
+
+New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
+$tmp = Join-Path $env:TEMP ("frp-" + [guid]::NewGuid().ToString("N"))
+New-Item -ItemType Directory -Force -Path $tmp | Out-Null
+
+$zipName = "frp_" + $ver + "_windows_amd64.zip"
+$url = "https://github.com/fatedier/frp/releases/download/" + $Version + "/" + $zipName
+Info "下载 $url"
+$zip = Join-Path $tmp $zipName
+try {
+    Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing -TimeoutSec 300
+} catch {
+    Die ("下载失败：" + $_.Exception.Message + "`n可手动下载 " + $url + " 解压后把 frpc.exe 放到 " + $InstallDir + "，再重新运行脚本（会跳过下载）。")
+}
+
+Expand-Archive -Path $zip -DestinationPath $tmp -Force
+$exeSrc = Get-ChildItem -Path $tmp -Recurse -Filter "frpc.exe" | Select-Object -First 1
+if (-not $exeSrc) { Die "压缩包里没找到 frpc.exe" }
+Copy-Item $exeSrc.FullName (Join-Path $InstallDir "frpc.exe") -Force
+
+$config = @"
+# PULSE · frpc（本机引擎侧）—— 由 deploy/frp/install-frpc.ps1 生成
+serverAddr = "$ServerAddr"
+serverPort = 7000
+auth.method = "token"
+auth.token = "$Token"
+
+transport.tls.enable = true
+log.to = "console"
+log.level = "info"
+
+[[proxies]]
+name = "pulse-api"
+type = "tcp"
+localIP = "127.0.0.1"
+localPort = $LocalPort
+remotePort = $RemotePort
+
+healthCheck.type = "tcp"
+healthCheck.timeoutSeconds = 3
+healthCheck.maxFailed = 3
+healthCheck.intervalSeconds = 10
+"@
+$configPath = Join-Path $InstallDir "frpc.toml"
+Set-Content -Path $configPath -Value $config -Encoding utf8
+Info "已写入 $configPath"
+
+$action = New-ScheduledTaskAction -Execute (Join-Path $InstallDir "frpc.exe") -Argument ('-c "' + $configPath + '"')
+$trigger = New-ScheduledTaskTrigger -AtStartup
+$settingArgs = @{
+    AllowStartIfOnBatteries    = $true
+    DontStopIfGoingOnBatteries = $true
+    StartWhenAvailable         = $true
+    RestartCount               = 999
+    RestartInterval            = (New-TimeSpan -Minutes 1)
+    ExecutionTimeLimit         = [TimeSpan]::Zero
+}
+$settings = New-ScheduledTaskSettingsSet @settingArgs
+$regArgs = @{
+    TaskName  = $TaskName
+    Action    = $action
+    Trigger   = $trigger
+    Settings  = $settings
+    User      = "SYSTEM"
+    RunLevel  = "Highest"
+    Force     = $true
+}
+Register-ScheduledTask @regArgs | Out-Null
+Info ("已注册开机自启任务：" + $TaskName)
+
+Start-ScheduledTask -TaskName $TaskName
+Start-Sleep -Seconds 3
+$proc = Get-Process -Name "frpc" -ErrorAction SilentlyContinue
+if ($proc) {
+    Info ("frpc 已启动（PID " + $proc.Id + "）")
+} else {
+    Write-Host "[frpc] frpc 进程未出现，请检查：" -ForegroundColor Yellow
+    Write-Host "  - 云服务器是否放行 TCP 7000"
+    Write-Host "  - Token 是否与 /etc/frp/frps.toml 一致"
+    Write-Host ("  - 手动前台排查：" + $InstallDir + "\frpc.exe -c " + $configPath)
+}
+
+Write-Host ""
+Write-Host "下一步：" -ForegroundColor Green
+Write-Host "  1) 确认本机后端已启动：python -m uvicorn api_server:app --host 127.0.0.1 --port 8000"
+Write-Host "  2) 浏览器打开 https://pulse.ainavi.online/api/mobile/ping 应返回 JSON"
+Write-Host "  3) 开机自启后端：deploy\frp\install-backend-task.ps1 -Python <python.exe 路径> -WorkDir <项目目录>"
