@@ -161,14 +161,11 @@ journalctl -u pulse-tunnel-watch -n 20 --no-pager
 在**管理员 PowerShell**里（项目目录下）：
 
 ```powershell
-# 1) 隧道客户端（自动下载 frp、写配置、注册 SYSTEM 开机自启任务 PULSE-frpc）
-powershell -ExecutionPolicy Bypass -File deploy\frp\install-frpc.ps1 ^
-  -ServerAddr 81.70.92.137 -Token <第 2 步打印的 token>
+# 1) 隧道客户端（自动下载 frp、写配置、注册 SYSTEM 开机自启任务 PULSE-frpc；整行复制）
+powershell -ExecutionPolicy Bypass -File deploy\frp\install-frpc.ps1 -ServerAddr 81.70.92.137 -Token <第 2 步打印的 token>
 
-# 2) 本机后端开机自启（任务 PULSE-backend，只监听 127.0.0.1:8000）
-powershell -ExecutionPolicy Bypass -File deploy\frp\install-backend-task.ps1 ^
-  -Python "D:\anaconda\envs\agent\python.exe" ^
-  -WorkDir "D:\anaconda\envs\agent\monitor_system"
+# 2) 本机后端开机自启（任务 PULSE-backend，只监听 127.0.0.1:8000；整行复制）
+powershell -ExecutionPolicy Bypass -File deploy\frp\install-backend-task.ps1 -Python "D:\anaconda\envs\agent\python.exe" -WorkDir "D:\anaconda\envs\agent\monitor_system"
 ```
 
 验证：
@@ -176,9 +173,9 @@ powershell -ExecutionPolicy Bypass -File deploy\frp\install-backend-task.ps1 ^
 ```powershell
 Get-ScheduledTask PULSE-frpc, PULSE-backend | Format-Table TaskName, State
 Get-Process frpc
-curl http://127.0.0.1:8000/api/mobile/ping        # 本机后端
+curl.exe http://127.0.0.1:8000/api/mobile/ping        # 本机后端
 # 云端视角（应在第 5 步完成后 200）
-curl https://pulse.ainavi.online/api/mobile/ping
+curl.exe https://pulse.ainavi.online/api/mobile/ping
 ```
 
 说明：
@@ -201,7 +198,7 @@ Register-ScheduledTask -TaskName "Ollama" -Action $action -Trigger $trigger -Use
 确认：
 
 ```powershell
-curl http://127.0.0.1:11434/api/tags
+curl.exe http://127.0.0.1:11434/api/tags
 ```
 
 ### 电源设置（关键）
@@ -313,6 +310,7 @@ grep auth.token /etc/frp/frps.toml     # 复制新 token
 | 上传 3D 模型失败 | 模型 > 80MB；nginx `client_max_body_size 100m` 已配 |
 | 证书过期 | `sudo certbot renew --dry-run` 检查；系统自带 timer 应自动续 |
 | 公网能开但很慢 | 上行带宽瓶颈；3D 首次加载 1MB 属正常，后续可给 `/static/` 加 nginx 缓存 |
+| 想让厂房局域网网页端也能开 | 把 `PULSE-backend` 任务的参数改成 `--host 0.0.0.0`（或临时前台 `python -m uvicorn api_server:app --host 0.0.0.0 --port 8000`），再在 Windows 防火墙放行 8000 的局域网入站；公网仍然只走隧道，不会直接暴露 |
 
 ---
 
