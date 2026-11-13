@@ -4,6 +4,25 @@
 >
 > 如果你更想「全部部署到云服务器」，看 `docs/deploy-ainavi.md`（**已不采用**，本机没有公网 IP 时那条路需要把服务搬上云）。
 
+## 0.1 上线状态（2026-11-13 16:57，已端到端打通）
+
+| 检查项 | 结果 |
+| --- | --- |
+| `81.70.92.137:7000`（frps 控制端口） | ✅ 已放行（腾讯云**轻量应用服务器**的「防火墙」页，不是 CVM 安全组；实例 `lhins-8sm67qfi`） |
+| frps | ✅ active，`LISTEN *:7000`，`allowPorts=[18000]`、`proxyBindAddr=127.0.0.1`、`transport.tls.force=true` |
+| nginx + Let's Encrypt | ✅ 443 正常，证书已签（`protocol options redefined for 0.0.0.0:443` 为 certbot 生成的重复 443 块警告，无害） |
+| Windows frpc | ✅ 由计划任务 `PULSE-frpc`（SYSTEM）运行，日志 `login to server success` + `start proxy success` |
+| Windows 后端 | ✅ 由计划任务 `PULSE-backend`（SYSTEM）运行，`127.0.0.1:8000/api/mobile/ping` 200 |
+| `https://pulse.ainavi.online/api/mobile/ping` | ✅ 200 `{"ok":true,...}`（经隧道回本机） |
+| `/api/settings`、`/api/twin/overview`、`/api/alerts` | ✅ 401（鉴权生效，公网不裸奔） |
+| `/api/mobile/feishu/start` | ✅ 200，返回 `authorize_url` + `state`，`redirect_uri=https://pulse.ainavi.online/api/mobile/feishu/callback` |
+| `/ws/sensor`、`/ws/chat`（带 Upgrade 头） | ✅ 403（nginx 已转发 WS，后端按 token 拒绝，符合预期） |
+
+踩过的坑（下次别再踩）：
+
+1. **轻量应用服务器的防火墙**在实例详情页，和 CVM 安全组不是一套；只配安全组会一直 `i/o timeout`（被丢包，不是 refused）。
+2. `frpc.toml` **不能带 UTF-8 BOM**：PowerShell 5.1 的 `Set-Content -Encoding utf8` 会写 BOM，frp 解析器报 `toml: invalid character at start of key: U+00EF` 并秒退。安装脚本已改为 `UTF8Encoding($false)`。
+3. 没有 `Restart-ScheduledTask` 这个 cmdlet；用 `Stop-ScheduledTask` + `Start-ScheduledTask`。
 ## 0. 架构
 
 ```
