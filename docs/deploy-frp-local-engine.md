@@ -313,6 +313,7 @@ grep auth.token /etc/frp/frps.toml     # 复制新 token
 | 现象 | 原因 / 处理 |
 |---|---|
 | 全站 503「本地引擎离线」 | frpc 没跑 / token 不对 / 本机后端没起 / 电脑休眠。依次查：`Get-Process frpc`、`curl 127.0.0.1:8000/api/mobile/ping`、任务计划状态 |
+| 运行安装脚本报「意外的标记」「缺少右 )」且中文变乱码 | 脚本被当成 GBK 读取（旧版本 UTF-8 无 BOM）。`git pull` 到 272d9c5 之后已修，重跑即可 |
 | 云上 `curl 127.0.0.1:18000` 连不上 | frps 没跑，或 frpc 未连接：`journalctl -u frps -n 50` |
 | 502 而不是 503 | nginx 站点文件被 certbot 改过后 `error_page` 丢了：重新对比仓库里的 `deploy/nginx/pulse.ainavi.online.conf` |
 | App 一直转圈、网页正常 | WebSocket 被挡：确认 nginx 里有 `Upgrade`/`Connection` 两行；浏览器 F12 看 `/ws/sensor` 是否 101 |
