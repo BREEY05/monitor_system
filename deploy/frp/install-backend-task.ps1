@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   PULSE · 把本机后端（uvicorn api_server:app）注册成开机自启任务。
 

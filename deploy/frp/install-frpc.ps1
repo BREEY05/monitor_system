@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   PULSE · 在 Windows 上安装 frpc，并注册为开机自启任务。
 
@@ -21,13 +21,15 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$ProgressPreference = "SilentlyContinue"
+try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch { }
 
 function Info($m) { Write-Host "[frpc] $m" -ForegroundColor Cyan }
 function Die($m)  { Write-Host "[frpc] $m" -ForegroundColor Red; exit 1 }
 
 $identity = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
 if (-not $identity.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    Die "请用管理员 PowerShell 运行（右键 → 以管理员身份运行）"
+    Die "需要管理员权限：请运行 deploy\frp\install-windows.cmd <token>（会自动提权），或右键「以管理员身份运行」PowerShell"
 }
 
 if ([string]::IsNullOrWhiteSpace($Version)) {
@@ -71,7 +73,13 @@ if ($needDownload) {
         foreach ($u in $candidates) {
             Info ("下载 " + $u)
             try {
-                Invoke-WebRequest -Uri $u -OutFile $zip -UseBasicParsing -TimeoutSec 240
+                $curl = Get-Command curl.exe -ErrorAction SilentlyContinue
+                if ($curl) {
+                    & curl.exe -L --fail --connect-timeout 20 --max-time 600 -o $zip $u
+                    if ($LASTEXITCODE -ne 0) { throw ("curl 退出码 " + $LASTEXITCODE) }
+                } else {
+                    Invoke-WebRequest -Uri $u -OutFile $zip -UseBasicParsing -TimeoutSec 240
+                }
                 $fs = Get-Item $zip
                 if ($fs.Length -lt 5MB) { throw ("文件过小（" + $fs.Length + " 字节），可能是错误页") }
                 $ok = $true
