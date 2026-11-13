@@ -13,6 +13,7 @@ param(
     [Parameter(Mandatory = $true)][string]$ServerAddr,
     [Parameter(Mandatory = $true)][string]$Token,
     [string]$Version = "",
+    [string]$ZipPath = "",
     [string]$InstallDir = "C:\pulse\frp",
     [int]$RemotePort = 18000,
     [int]$LocalPort = 8000,
@@ -32,7 +33,7 @@ if (-not $identity.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrat
 if ([string]::IsNullOrWhiteSpace($Version)) {
     $Version = "v0.72.0"
     try {
-        $latest = Invoke-RestMethod -Uri "https://api.github.com/repos/fatedier/frp/releases/latest" -TimeoutSec 15 -Headers @{ "User-Agent" = "pulse-installer" }
+        $latest = Invoke-RestMethod -Uri "https://api.github.com/repos/fatedier/frp/releases/latest" -TimeoutSec 10 -Headers @{ "User-Agent" = "pulse-installer" }
         if ($latest.tag_name) { $Version = $latest.tag_name }
     } catch {
         Info "获取最新版本失败，使用内置版本 $Version"
@@ -46,19 +47,56 @@ $tmp = Join-Path $env:TEMP ("frp-" + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Force -Path $tmp | Out-Null
 
 $zipName = "frp_" + $ver + "_windows_amd64.zip"
-$url = "https://github.com/fatedier/frp/releases/download/" + $Version + "/" + $zipName
-Info "下载 $url"
+$ghUrl = "https://github.com/fatedier/frp/releases/download/" + $Version + "/" + $zipName
+$installedExe = Join-Path $InstallDir "frpc.exe"
 $zip = Join-Path $tmp $zipName
-try {
-    Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing -TimeoutSec 300
-} catch {
-    Die ("下载失败：" + $_.Exception.Message + "`n可手动下载 " + $url + " 解压后把 frpc.exe 放到 " + $InstallDir + "，再重新运行脚本（会跳过下载）。")
+$needDownload = $true
+if (-not $PSBoundParameters.ContainsKey("Version") -and (Test-Path $installedExe)) {
+    Info "已存在 frpc.exe，跳过下载（换版本请加 -Version vX.Y.Z）"
+    $needDownload = $false
 }
 
-Expand-Archive -Path $zip -DestinationPath $tmp -Force
+if ($needDownload) {
+    if ($ZipPath -and (Test-Path $ZipPath)) {
+        Info "使用本地压缩包 $ZipPath"
+        Copy-Item $ZipPath $zip -Force
+    } else {
+        $candidates = @(
+            $ghUrl,
+            ("https://ghfast.top/" + $ghUrl),
+            ("https://gh-proxy.com/" + $ghUrl),
+            ("https://mirror.ghproxy.com/" + $ghUrl)
+        )
+        $ok = $false
+        foreach ($u in $candidates) {
+            Info ("下载 " + $u)
+            try {
+                Invoke-WebRequest -Uri $u -OutFile $zip -UseBasicParsing -TimeoutSec 240
+                $fs = Get-Item $zip
+                if ($fs.Length -lt 5MB) { throw ("文件过小（" + $fs.Length + " 字节），可能是错误页") }
+                $ok = $true
+                Info ("下载完成：" + [math]::Round($fs.Length / 1MB, 1) + " MB")
+                break
+            } catch {
+                Info ("失败：" + $_.Exception.Message)
+                if (Test-Path $zip) { Remove-Item $zip -Force -ErrorAction SilentlyContinue }
+            }
+        }
+        if (-not $ok) {
+            Die ("所有下载源都失败。可手动下载 " + $ghUrl + " 解压后把 frpc.exe 放到 " + $InstallDir + " 再运行 install-windows.cmd（已有 frpc.exe 会跳过下载）。")
+        }
+    }
+    Expand-Archive -Path $zip -DestinationPath $tmp -Force
+}
+
 $exeSrc = Get-ChildItem -Path $tmp -Recurse -Filter "frpc.exe" | Select-Object -First 1
-if (-not $exeSrc) { Die "压缩包里没找到 frpc.exe" }
-Copy-Item $exeSrc.FullName (Join-Path $InstallDir "frpc.exe") -Force
+if ($exeSrc) {
+    Copy-Item $exeSrc.FullName $installedExe -Force
+} elseif (-not (Test-Path $installedExe)) {
+    Die "没有可用的 frpc.exe：下载包解压失败，且安装目录里也没有"
+}
+
+
 
 $config = @"
 # PULSE · frpc（本机引擎侧）—— 由 deploy/frp/install-frpc.ps1 生成

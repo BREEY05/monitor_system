@@ -158,15 +158,26 @@ journalctl -u pulse-tunnel-watch -n 20 --no-pager
 
 ## 5. Windows：frpc + 后端开机自启
 
-在**管理员 PowerShell**里（项目目录下）：
+先在**云控制台安全组放行 TCP 7000**，再在项目目录的**普通 cmd/PowerShell** 里执行（会自动弹 UAC 提权，不需要手动开管理员窗口）：
 
-```powershell
-# 1) 隧道客户端（自动下载 frp、写配置、注册 SYSTEM 开机自启任务 PULSE-frpc；整行复制）
-powershell -ExecutionPolicy Bypass -File deploy\frp\install-frpc.ps1 -ServerAddr 81.70.92.137 -Token <第 2 步打印的 token>
+```bat
+:: 1) 隧道客户端：自动下载 frp、写配置、注册 SYSTEM 开机自启任务 PULSE-frpc
+deploy\frp\install-windows.cmd <第 2 步打印的 token>
 
-# 2) 本机后端开机自启（任务 PULSE-backend，只监听 127.0.0.1:8000；整行复制）
+:: 2) 本机后端开机自启（任务 PULSE-backend，只监听 127.0.0.1:8000）
+::    这一条需要管理员 PowerShell
 powershell -ExecutionPolicy Bypass -File deploy\frp\install-backend-task.ps1 -Python "D:\anaconda\envs\agent\python.exe" -WorkDir "D:\anaconda\envs\agent\monitor_system"
 ```
+
+下载说明（国内网络）：
+
+- 安装器按 **GitHub 直连 → ghfast.top → gh-proxy.com → mirror.ghproxy.com** 顺序回退；直连约 140 KB/s，14 MB 需要 1～2 分钟，属正常。
+- 所有源都失败时：手动下载 `frp_0.72.0_windows_amd64.zip`，解压出 `frpc.exe` 放到 `C:\pulse\frp\`，再跑一次 `install-windows.cmd <token>`（检测到已有 frpc.exe 会跳过下载）。
+- 也可以用自己的通道下载 zip 后加参数：`-ZipPath "D:\path\frp.zip"`。
+
+排错：如果 `Get-Process frpc` 没有进程，前台跑 `C:\pulse\frp\frpc.exe -c C:\pulse\frp\frpc.toml`；
+日志出现 `dial tcp 81.70.92.137:7000: i/o timeout` 就是**安全组 7000 没放行**（本机出站不受限），
+出现 `auth failed` 则是 token 与 `/etc/frp/frps.toml` 不一致。
 
 验证：
 
